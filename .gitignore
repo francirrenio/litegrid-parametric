@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+.venv/
+venv/
+env/
+
+# CAD artifacts
+*.stl
+*.step
+*.stp
+*.brep
+
+# Build and temp outputs
+build/
+dist/
+*.egg-info/
+.DS_Store
+tmp/
+temp/

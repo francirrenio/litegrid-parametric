@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/litegrid-parametric/schemas/cabinet-drawer-contract.schema.json",
+  "title": "LiteGrid Parametric Cabinet to Drawer Contract",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generator",
+    "cabinet",
+    "grid",
+    "interlocks",
+    "drawers",
+    "flat_pack_panels"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "generator": {
+      "const": "cabinet"
+    },
+    "cad_backend_scaffold": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2
+    },
+    "cabinet": {
+      "type": "object",
+      "required": [
+        "outer_dimensions",
+        "inner_dimensions",
+        "nozzle_diameter",
+        "extrusion_unit",
+        "wall_thickness",
+        "build_volume"
+      ]
+    },
+    "grid": {
+      "type": "object",
+      "required": [
+        "rows",
+        "columns",
+        "slot_width",
+        "slot_depth",
+        "slot_height",
+        "divider_thickness"
+      ]
+    },
+    "interlocks": {
+      "type": "object",
+      "required": [
+        "style",
+        "tab_width",
+        "panel_clearance"
+      ]
+    },
+    "drawers": {
+      "type": "object",
+      "required": [
+        "clearance",
+        "wall_profile_options",
+        "entries"
+      ]
+    },
+    "flat_pack_panels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "segments"
+        ]
+      }
+    }
+  }
+}
