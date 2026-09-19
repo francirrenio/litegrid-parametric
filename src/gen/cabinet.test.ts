@@ -183,3 +183,30 @@ describe('bed splitting', () => {
     expect(geo.plates.filter((x) => x.kind === 'costas')).toHaveLength(1)
   })
 })
+
+describe('dividers between drawers', () => {
+  it('creates one divider per neighbouring pair in each row', () => {
+    const { p, nz, layout } = setup({
+      printBed: { x: 500, y: 500 },
+      sections: [{ width: 'auto', rows: [{ height: 'auto', divisions: 3 }, { height: 'auto', divisions: 2 }, { height: 'auto', divisions: 1 }] }],
+    })
+    const geo = buildSkeleton(p, layout, nz)
+    expect(geo.plates.filter((x) => x.kind === 'divisoria')).toHaveLength(2 + 1)
+    const parts = generateCabinetParts(p, layout, nz)
+    const div = parts.find((x) => x.label.startsWith('Divisória'))
+    expect(div).toBeDefined()
+    expect(isWatertight(div!.mesh)).toBe(true)
+  })
+
+  it('shelf and base windows leave wide rails and cross bars', () => {
+    const { p, nz, layout } = setup({ printBed: { x: 500, y: 500 }, materialLevel: 'minimo' })
+    const geo = buildSkeleton(p, layout, nz)
+    const shelf = geo.plates.find((x) => x.kind === 'prateleira')!
+    const xs = shelf.shape.flat(2).map((v) => v[0]!)
+    const x0 = Math.min(...xs)
+    const holes = shelf.shape[0]!.slice(1)
+    const holeMinX = Math.min(...holes.flat().map((v) => v[0]!))
+    expect(holeMinX - x0).toBeGreaterThanOrEqual(13.9)
+    expect(holes.length).toBeGreaterThan(2)
+  })
+})

@@ -8,7 +8,7 @@ import {
   backPlane, diff, EMPTY, framePlane, planeBar, planeCircle, planeRect, shelfPlane, union, type Plane, type Shape,
 } from './plate2d'
 
-export type PlateKind = 'costas' | 'base' | 'topo' | 'quadro' | 'prateleira'
+export type PlateKind = 'costas' | 'base' | 'topo' | 'quadro' | 'divisoria' | 'prateleira'
 
 export interface SkeletonPlate {
   key: string
@@ -23,9 +23,19 @@ export interface SkeletonPlate {
   matrix: Mat4
 }
 
+export interface SkeletonRow {
+  /** Bottom of the clear row height. */
+  y: number
+  h: number
+  /** Left face x of each divider between neighbouring drawers of this row. */
+  dividers: number[]
+}
+
 export interface SkeletonSection {
   xl: number
   xr: number
+  /** Rows from top to bottom. */
+  rows: SkeletonRow[]
   /** y of each shelf plate bottom face between consecutive rows (top to bottom), plus the row loads. */
   shelves: Array<{ y: number; loadAbove: 'leve' | 'media' | 'pesada' }>
 }
@@ -139,7 +149,11 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       const load = p.sections[s - 1]?.rows[row - 2]?.load ?? 'media'
       shelves.push({ y: above.y - t, loadAbove: load })
     })
-    sections.push({ xl, xr, shelves })
+    const rowInfo: SkeletonRow[] = rows.map((row) => {
+      const rb = bays.filter((b) => b.row === row).sort((a, b) => a.x - b.x)
+      return { y: rb[0]!.y, h: rb[0]!.clearHeight, dividers: rb.slice(0, -1).map((b) => b.x + b.clearWidth) }
+    })
+    sections.push({ xl, xr, rows: rowInfo, shelves })
   }
   const frames: number[] = [0]
   for (let k = 0; k < sections.length - 1; k++) frames.push(sections[k]!.xr)
@@ -152,6 +166,13 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   const tlY = tabLength(H - 2 * t, nY)
   const yc = evenCenters(t + bw, H - t - bw, nY)
   const slotZ = (c: number, tl: number): [number, number] => [c - tl / 2 - fit, c + tl / 2 + fit]
+  const divTabs = (row: SkeletonRow) => {
+    const n = row.h > 45 ? 2 : 1
+    return { centers: evenCenters(row.y + 3, row.y + row.h - 3, n), tl: Math.min(12, row.h * 0.35) }
+  }
+  const divBar = (x: number): [number, number] => [x + t / 2 - bw / 2, x + t / 2 + bw / 2]
+  const sepW = Math.max(bw * 2, 16)
+  const sepBar = (x: number): [number, number] => [x + t / 2 - sepW / 2, x + t / 2 + sepW / 2]
   const brMode = bracingFor(p.skeleton.bracing)
   const level = p.materialLevel
 
@@ -172,13 +193,18 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       const yGaps = gaps(barsY, 0, H, 6)
       yGaps.forEach(([ya, yb], i) => {
         if (p.skeleton.bracing === 'back') return
-        cuts.push(brace(pl, xa, xb, ya, yb, brMode, i % 2 === 1, bw))
+        const row = sec?.rows.find((r) => r.y < yb - 0.01 && r.y + r.h > ya + 0.01)
+        for (const [wa, wb] of gaps((row?.dividers ?? []).map(divBar), xa, xb, 6)) cuts.push(brace(pl, wa, wb, ya, yb, brMode, i % 2 === 1, bw))
       })
     }
     for (const x of joinery ? frames : []) {
       for (const c of yc) cuts.push(planeRect(pl, x - fit, x + t + fit, c - tlY / 2 - fit, c + tlY / 2 + fit))
     }
     for (const sec of joinery ? sections : []) {
+      for (const row of sec.rows) {
+        const dt = divTabs(row)
+        for (const x of row.dividers) for (const c of dt.centers) cuts.push(planeRect(pl, x - fit, x + t + fit, c - dt.tl / 2 - fit, c + dt.tl / 2 + fit))
+      }
       const nX = Math.max(2, Math.round((sec.xr - sec.xl) / 70))
       for (const sh of sec.shelves) {
         for (const cx of evenCenters(sec.xl + bw, sec.xr - bw, nX)) {
@@ -210,9 +236,14 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       const [z0, z1] = slotZ(c, tlZ)
       cuts.push(planeRect(pl, x - fit, x + t + fit, z0, z1))
     }
+    const divX = sections.flatMap((sec) => (kind === 'base' ? sec.rows.at(-1) : sec.rows[0])?.dividers ?? [])
+    for (const x of joinery ? divX : []) for (const c of zc) {
+      const [z0, z1] = slotZ(c, tlZ)
+      cuts.push(planeRect(pl, x - fit, x + t + fit, z0, z1))
+    }
     const load: Load = kind === 'base' ? (p.sections[0]?.rows.at(-1)?.load ?? 'media') : 'leve'
     const mode = kind === 'base' ? shelfMode(level, load, true) : level === 'reforcado' ? 'closed' : 'rails'
-    cuts.push(...shelfWindows(pl, mode, 0, W, t, D, bw, frames.map((x) => [x - bw / 2 + t / 2, x + bw / 2 + t / 2] as [number, number])))
+    cuts.push(...shelfWindows(pl, mode, 0, W, t, D, bw, [...frames, ...divX].map(sepBar)))
     for (const [u, v] of anchors(kind === 'base' ? 'bottom' : 'top').points) {
       const z = kind === 'base' ? v : D - v
       cuts.push(planeCircle(pl, u, z, skeletonMetrics(p, nz).holeD / 2 + fit / 2))
@@ -265,6 +296,27 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     })
   })
 
+  /* ── dividers between drawers of a row (YZ) ─────────────────── */
+  sections.forEach((sec) => sec.rows.forEach((row) => row.dividers.forEach((xd) => {
+    const pl = framePlane(xd, D)
+    let shape = planeRect(pl, t, D, row.y, row.y + row.h)
+    const tabs: Shape[] = []
+    for (const c of zc) {
+      tabs.push(planeRect(pl, c - tlZ / 2, c + tlZ / 2, row.y + row.h, row.y + row.h + t))
+      tabs.push(planeRect(pl, c - tlZ / 2, c + tlZ / 2, row.y - t, row.y))
+    }
+    const dt = divTabs(row)
+    for (const c of dt.centers) tabs.push(planeRect(pl, 0, t, c - dt.tl / 2, c + dt.tl / 2))
+    if (joinery) shape = union(shape, ...tabs)
+    const ya = row.y + bw * 0.6, yb = row.y + row.h - bw * 0.6
+    const cuts: Shape[] = []
+    if (yb - ya >= 10 && D - 2 * bw - t >= 10) cuts.push(brace(pl, t + bw, D - bw, ya, yb, brMode, false, bw))
+    plates.push({
+      key: `div-${r2(xd)}-${r2(row.y)}`, kind: 'divisoria', label: 'Divisória', step: 3,
+      thickness: t, plane: pl, shape: diff(shape, ...cuts), matrix: pl.matrix,
+    })
+  })))
+
   /* ── shelves (XZ) ───────────────────────────────────────────── */
   sections.forEach((sec, s) => {
     const xa = frames[s]! + t
@@ -272,8 +324,14 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     const extL = s === 0, extR = s === sections.length - 1
     const tlL = extL ? t : Math.max(0.6, t / 2 - 0.1)
     const tlR = extR ? t : Math.max(0.6, t / 2 - 0.1)
-    for (const sh of sec.shelves) {
+    for (const [k, sh] of sec.shelves.entries()) {
+      const divs = [...(sec.rows[k]?.dividers ?? []), ...(sec.rows[k + 1]?.dividers ?? [])]
+      const slots: Shape[] = []
       const pl = shelfPlane(sh.y, D)
+      for (const x of joinery ? divs : []) for (const c of zc) {
+        const [z0, z1] = slotZ(c, tlZ)
+        slots.push(planeRect(pl, x - fit, x + t + fit, z0, z1))
+      }
       let shape = planeRect(pl, xa, xb, t, D)
       const tabs: Shape[] = []
       for (const c of zc) {
@@ -284,7 +342,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       for (const cx of evenCenters(xa + bw, xb - bw, nX)) tabs.push(planeRect(pl, cx - tlZ / 2, cx + tlZ / 2, 0, t))
       if (joinery) shape = union(shape, ...tabs)
       const mode = shelfMode(level, sh.loadAbove, false)
-      shape = diff(shape, ...shelfWindows(pl, mode, xa, xb, t, D, bw, []))
+      shape = diff(shape, ...slots, ...shelfWindows(pl, mode, xa, xb, t, D, bw, divs.map(sepBar)))
       plates.push({
         key: `prat-${s}-${r2(sh.y)}`, kind: 'prateleira', label: 'Prateleira', step: 4,
         thickness: t, plane: pl, shape, matrix: pl.matrix,
@@ -310,14 +368,19 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   return { W, H, D, t, bw, fit, frames, sections, plates: finalPlates, warnings }
 }
 
-/** Openings of a horizontal plate. `keep` lists x-intervals that must stay solid (bars over frames). */
+/**
+ * Openings of a horizontal plate. Side rails are wide so a drawer that drifts sideways still rests on them, and
+ * transverse bars keep a drawer that slips from dropping through the window. `keep` lists x-intervals that must
+ * stay solid (over frames and dividers).
+ */
 function shelfWindows(
   pl: Plane, mode: ShelfMode, xa: number, xb: number, za: number, zb: number, bw: number, keep: Array<[number, number]>,
 ): Shape[] {
   if (mode === 'closed') return []
   const z0 = za + bw, z1 = zb - bw
   if (z1 - z0 < 10) return []
-  const bars: Array<[number, number]> = [[xa, xa + bw], [xb - bw, xb], ...keep.filter(([a, b]) => b > xa && a < xb)]
+  const rail = Math.max(bw * 1.75, 14)
+  const bars: Array<[number, number]> = [[xa, xa + rail], [xb - rail, xb], ...keep.filter(([a, b]) => b > xa && a < xb)]
   if (mode === 'frame') {
     const span = xb - xa
     const n = Math.max(0, Math.round(span / 60) - 1)
@@ -326,7 +389,18 @@ function shelfWindows(
       bars.push([c - bw * 0.3, c + bw * 0.3])
     }
   }
-  return gaps(bars, xa, xb, 6).map(([a, b]) => planeRect(pl, a, b, z0, z1))
+  const nT = Math.max(1, Math.floor((z1 - z0) / (mode === 'frame' ? 45 : 70)))
+  const tw = bw * 0.75
+  const zBars: Array<[number, number]> = []
+  for (let i = 1; i <= nT; i++) {
+    const c = z0 + ((z1 - z0) * i) / (nT + 1)
+    zBars.push([c - tw / 2, c + tw / 2])
+  }
+  const out: Shape[] = []
+  for (const [a, b] of gaps(bars, xa, xb, 6)) {
+    for (const [c, d] of gaps(zBars, z0, z1, 6)) out.push(planeRect(pl, a, b, c, d))
+  }
+  return out
 }
 
 /** Peg/hole centres (face-local u, v) along the skeleton's outer bars for a face. */
