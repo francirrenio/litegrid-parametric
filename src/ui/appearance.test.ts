@@ -44,3 +44,23 @@ describe('visibility', () => {
     expect(isInstanceVisible(v, 'gaveta', 'g', 0)).toBe(true)
   })
 })
+
+describe('hidden drawers in a bay', () => {
+  it('finds what is hidden at a bay and how to bring it back', async () => {
+    const { generate } = await import('../gen')
+    const { defaultProject } = await import('../model/defaults')
+    const { hiddenInBay, partsInBay } = await import('./bayparts')
+    const r = generate(defaultProject())
+    const bay = r.layout.bays[0]!
+    const here = partsInBay(r, bay.id)
+    expect(here.length).toBeGreaterThan(0)
+    const drawer = here.find((x) => x.label.startsWith('Gaveta'))!
+    expect(hiddenInBay(r, ALL_VISIBLE, bay.id)).toEqual([])
+    const hiddenPart = hiddenInBay(r, { ...ALL_VISIBLE, hiddenParts: [drawer.id] }, bay.id)
+    expect(hiddenPart.map((e) => e.kind)).toContain('part')
+    const hiddenGroup = hiddenInBay(r, { ...ALL_VISIBLE, hiddenGroups: ['gaveta'] }, bay.id)
+    expect(hiddenGroup.map((e) => e.kind)).toContain('group')
+    const isolated = hiddenInBay(r, { ...ALL_VISIBLE, isolate: 'costas-1', isolateOne: false }, bay.id)
+    expect(isolated.map((e) => e.kind)).toEqual(['all'])
+  })
+})

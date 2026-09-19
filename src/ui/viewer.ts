@@ -81,7 +81,7 @@ export class Viewer {
   private ray = new THREE.Raycaster()
   private down: { x: number; y: number } | null = null
   onPickBay: (id: string | null) => void = () => {}
-  onPickPart: (id: string | null, clientX: number, clientY: number) => void = () => {}
+  onPickPart: (id: string | null, clientX: number, clientY: number, bayId: string | null) => void = () => {}
 
   constructor(host: HTMLElement) {
     this.el = host
@@ -526,8 +526,9 @@ export class Viewer {
     const partHit = this.ray.intersectObjects(shown, true).find((h) => h.object instanceof THREE.Mesh)
     let o: THREE.Object3D | null = partHit?.object ?? null
     while (o && !o.userData.partId) o = o.parent
-    this.onPickPart((o?.userData.partId as string | undefined) ?? null, e.clientX, e.clientY)
-    this.onPickBay((hit?.object.userData.bay as string | undefined) ?? null)
+    const bayId = (hit?.object.userData.bay as string | undefined) ?? null
+    this.onPickPart((o?.userData.partId as string | undefined) ?? null, e.clientX, e.clientY, bayId)
+    this.onPickBay(bayId)
   }
 
   private recentre(e: MouseEvent): void {

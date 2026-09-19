@@ -1,5 +1,7 @@
 import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor } from './appearance'
+import { hiddenInBay } from './bayparts'
 import { createHeader } from './header'
+import type { PartGroup } from '../model/part'
 import { fmt, h, toast } from './dom'
 import { createPlatesView } from './plates-view'
 import { createSidebar } from './sidebar'
@@ -205,26 +207,48 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const hidePop = () => {
     partPop.hidden = true
   }
-  const showPop = (id: string | null, clientX: number, clientY: number) => {
+  const showPop = (id: string | null, clientX: number, clientY: number, bayId: string | null = null) => {
     const part = id ? st.result.parts.find((p) => p.id === id) : undefined
-    if (!part) return hidePop()
+    const hiddenHere = bayId ? hiddenInBay(st.result, st.vis, bayId) : []
+    if (!part && hiddenHere.length === 0) return hidePop()
     partPop.textContent = ''
-    const colorNow = partColor(st.project.colors, part)
-    const col = h('input', { type: 'color', value: colorNow, class: 'swatch', 'aria-label': `Cor de ${part.label}` })
-    col.addEventListener('input', () => st.setPartColor(part.id, col.value))
-    const own = !!st.project.colors?.parts[part.id]
-    partPop.append(
-      h('div', { class: 'pop-head' }, h('b', null, part.label), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Fechar', onClick: hidePop }, '×')),
-      h('div', { class: 'pop-meta mono' }, `${GROUP_NAME[part.group]} · ${part.instances.length} ${part.instances.length === 1 ? 'cópia' : 'cópias'}`),
-      h('div', { class: 'pop-row' }, h('span', { class: 'lbl' }, 'Cor'), col, own ? h('button', { type: 'button', class: 'btn sm ghost', onClick: () => { st.setPartColor(part.id, null); showPop(id, clientX, clientY) } }, 'Cor do grupo') : null),
-      h(
-        'div',
-        { class: 'pop-acts' },
-        h('button', { type: 'button', class: 'btn sm', onClick: () => { st.togglePart(part.id); hidePop() } }, 'Esconder'),
-        h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, true); hidePop() } }, 'Só esta'),
-        part.instances.length > 1 ? h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, false); hidePop() } }, 'Só as iguais') : null,
-      ),
-    )
+    if (part) {
+      const colorNow = partColor(st.project.colors, part)
+      const col = h('input', { type: 'color', value: colorNow, class: 'swatch', 'aria-label': `Cor de ${part.label}` })
+      col.addEventListener('input', () => st.setPartColor(part.id, col.value))
+      const own = !!st.project.colors?.parts[part.id]
+      partPop.append(
+        h('div', { class: 'pop-head' }, h('b', null, part.label), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Fechar', onClick: hidePop }, '×')),
+        h('div', { class: 'pop-meta mono' }, `${GROUP_NAME[part.group]} · ${part.instances.length} ${part.instances.length === 1 ? 'cópia' : 'cópias'}`),
+        h('div', { class: 'pop-row' }, h('span', { class: 'lbl' }, 'Cor'), col, own ? h('button', { type: 'button', class: 'btn sm ghost', onClick: () => { st.setPartColor(part.id, null); showPop(id, clientX, clientY, bayId) } }, 'Cor do grupo') : null),
+        h(
+          'div',
+          { class: 'pop-acts' },
+          h('button', { type: 'button', class: 'btn sm', onClick: () => { st.togglePart(part.id); hidePop() } }, 'Esconder'),
+          h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, true); hidePop() } }, 'Só esta'),
+          part.instances.length > 1 ? h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, false); hidePop() } }, 'Só as iguais') : null,
+        ),
+      )
+    } else {
+      partPop.append(h('div', { class: 'pop-head' }, h('b', null, 'Escondida neste lugar'), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Fechar', onClick: hidePop }, '×')))
+    }
+    if (hiddenHere.length > 0) {
+      const box = h('div', { class: 'pop-hidden' }, h('span', { class: 'lbl' }, 'Escondido aqui'))
+      for (const e of hiddenHere) {
+        box.append(
+          h('button', {
+            type: 'button', class: 'btn sm primary',
+            onClick: () => {
+              if (e.kind === 'part') st.togglePart(e.id)
+              else if (e.kind === 'group') st.toggleGroup(e.id as PartGroup)
+              else st.showAll()
+              hidePop()
+            },
+          }, e.kind === 'all' ? 'Mostrar tudo' : `Mostrar ${e.label}`),
+        )
+      }
+      partPop.append(box)
+    }
     const r = pane3d.getBoundingClientRect()
     partPop.hidden = false
     const w = partPop.offsetWidth || 240

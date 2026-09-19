@@ -356,3 +356,4 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .plabel-row { display: flex; align-items: center; gap: 8px; }
 .plabel-row .plabel { flex: 1; }
 tr.dim-row { opacity: .45; }
+.pop-hidden { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-soft); }

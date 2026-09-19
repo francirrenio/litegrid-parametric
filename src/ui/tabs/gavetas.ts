@@ -1,5 +1,7 @@
 import { LEVEL_LABEL, hasValues, patchAt, resolveAt, scopeRoot, sourceOf, getIn, type Scope } from '../../model/resolve'
+import type { PartGroup } from '../../model/part'
 import type { DrawerFront, DrawerHandle } from '../../model/types'
+import { hiddenInBay } from '../bayparts'
 import { h } from '../dom'
 import { btn, checkField, group, numField, selectField, type Model } from '../fields'
 import type { Store } from '../state'
@@ -99,6 +101,16 @@ export function gavetasTab(st: Store): TabView {
     { class: `banner${isGlobal ? '' : ' accent'}` },
     h('span', null, 'Editando: ', h('b', null, scopeTitle(st))),
     own ? btn('Limpar exceções deste nível', () => st.unsetPath(root), { sm: true, icon: 'reset' }) : null,
+    scope.level === 'bay' && scope.bay && hiddenInBay(st.result, st.vis, scope.bay).length > 0
+      ? btn('Mostrar esta gaveta', () => {
+          for (const e of hiddenInBay(st.result, st.vis, scope.bay!)) {
+            if (e.kind === 'part') st.togglePart(e.id)
+            else if (e.kind === 'group') st.toggleGroup(e.id as PartGroup)
+            else st.showAll()
+          }
+          st.emit('selection')
+        }, { sm: true, kind: 'primary', icon: 'eye' })
+      : null,
     scope.level === 'bay' ? btn('Desmarcar', () => st.selectBay(null), { sm: true, kind: 'ghost' }) : null,
     h(
       'p',
