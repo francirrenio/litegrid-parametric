@@ -1,5 +1,6 @@
 import { polyArea, regularPolygon, type Vec2 } from '../geom/mesh'
 import type { HolePattern } from '../model/types'
+import { tr } from '../i18n'
 
 export interface PatternRequest {
   pattern: HolePattern
@@ -142,7 +143,7 @@ export function generatePattern(req: PatternRequest): PatternResult {
     const cellSide = l + 2 * SQRT3 * web
     const hgt = (cellSide * SQRT3) / 2
     const skipDown = req.upright && l > MAX_BRIDGE
-    if (skipDown) warnings.push(`Triângulos de ${l.toFixed(1)} mm: os de ponta para baixo foram omitidos (ponte longa demais para imprimir de pé).`)
+    if (skipDown) warnings.push(tr(`Triângulos de ${l.toFixed(1)} mm: os de ponta para baixo foram omitidos (ponte longa demais para imprimir de pé).`, `${l.toFixed(1)} mm triangles: the downward-pointing ones were omitted (bridge too long to print standing).`))
     const tri = (cx: number, cy: number, up: boolean): Vec2[] => {
       const rr = l / SQRT3
       const a0 = up ? Math.PI / 2 : -Math.PI / 2
@@ -172,7 +173,7 @@ export function generatePattern(req: PatternRequest): PatternResult {
   const area = holes.reduce((s, h) => s + Math.abs(polyArea(h)), 0)
   const openFraction = area / (req.width * req.height)
   if (size >= req.maxHole - 1e-6) {
-    warnings.push(`Furos limitados a ${req.maxHole} mm (menor item): abertura real de ${(openFraction * 100).toFixed(0)} %.`)
+    warnings.push(tr(`Furos limitados a ${req.maxHole} mm (menor item): abertura real de ${(openFraction * 100).toFixed(0)} %.`, `Holes limited to ${req.maxHole} mm (smallest item): actual opening of ${(openFraction * 100).toFixed(0)} %.`))
   }
   return { holes, openFraction, holeSize: size, warnings }
 }
@@ -203,7 +204,7 @@ function uprightHexagons(req: PatternRequest): PatternResult {
   const area = holes.reduce((a, h) => a + Math.abs(polyArea(h)), 0)
   const warnings = inner.warnings.slice()
   const side = inner.holeSize / SQRT3
-  if (side > MAX_BRIDGE) warnings.push(`Hexágonos de ${inner.holeSize.toFixed(1)} mm: o topo horizontal de ${side.toFixed(1)} mm é uma ponte longa para imprimir de pé.`)
+  if (side > MAX_BRIDGE) warnings.push(tr(`Hexágonos de ${inner.holeSize.toFixed(1)} mm: o topo horizontal de ${side.toFixed(1)} mm é uma ponte longa para imprimir de pé.`, `${inner.holeSize.toFixed(1)} mm hexagons: the ${side.toFixed(1)} mm horizontal top is a long bridge to print standing.`))
   return { holes, openFraction: area / (req.width * req.height), holeSize: inner.holeSize, warnings }
 }
 

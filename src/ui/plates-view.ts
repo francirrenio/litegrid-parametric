@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { plateKey, type PlateItem } from '../export'
 import { bedPicker } from './bed'
 import { append, esc, fmt, h, icon } from './dom'
@@ -40,11 +41,11 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
 
   const issueText = (it: PlateItem, iss: ItemIssue | undefined, items: PlateItem[], bed: { x: number; y: number }): string[] => {
     const out: string[] = []
-    if (it.width > bed.x + 1e-6 || it.depth > bed.y + 1e-6) out.push('Esta peça é maior que a mesa. Use uma mesa maior ou divida a peça.')
-    else if (iss?.outside) out.push('Esta peça passa do limite da mesa.')
+    if (it.width > bed.x + 1e-6 || it.depth > bed.y + 1e-6) out.push(tr('Esta peça é maior que a mesa. Use uma mesa maior ou divida a peça.', 'This part is larger than the bed. Use a larger bed or split the part.'))
+    else if (iss?.outside) out.push(tr('Esta peça passa do limite da mesa.', 'This part goes past the edge of the bed.'))
     if (iss && iss.overlaps.length > 0) {
       const names = iss.overlaps.slice(0, 2).map((j) => `${items[j]!.label} #${items[j]!.copy}`).join(', ')
-      out.push(`Esta peça se sobrepõe a outra (${names}${iss.overlaps.length > 2 ? '…' : ''}).`)
+      out.push(tr(`Esta peça se sobrepõe a outra (${names}${iss.overlaps.length > 2 ? '…' : ''}).`, `This part overlaps another (${names}${iss.overlaps.length > 2 ? '…' : ''}).`))
     }
     return out
   }
@@ -60,8 +61,8 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
     const idx = selKey ? items.findIndex((i) => plateKey(i.partId, i.copy) === selKey) : -1
     if (idx < 0) {
       append(foot, [
-        h('span', { class: 'muted' }, 'Arraste uma peça para movê-la. Toque ou clique numa peça para girar (R) ou levá-la a outra mesa.'),
-        bad > 0 ? h('span', { class: 'chip-sev error', role: 'status' }, `${bad} ${bad === 1 ? 'peça com problema' : 'peças com problema'} (contorno vermelho)`) : null,
+        h('span', { class: 'muted' }, tr('Arraste uma peça para movê-la. Toque ou clique numa peça para girar (R) ou levá-la a outra mesa.', 'Drag a part to move it. Tap or click a part to rotate (R) or send it to another bed.')),
+        bad > 0 ? h('span', { class: 'chip-sev error', role: 'status' }, `${bad} ${bad === 1 ? tr('peça com problema', 'part with a problem') : tr('peças com problema', 'parts with a problem')} ${tr('(contorno vermelho)', '(red outline)')}`) : null,
       ])
       return
     }
@@ -71,7 +72,7 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
     const target = h(
       'select',
       {
-        'aria-label': 'Mover para outra mesa',
+        'aria-label': tr('Mover para outra mesa', 'Move to another bed'),
         onChange: (e: Event) => {
           const v = Number((e.target as HTMLSelectElement).value)
           if (!v || v === plate.index) return
@@ -82,18 +83,18 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
           go(v - 1)
         },
       },
-      h('option', { value: '' }, 'Mover para…'),
+      h('option', { value: '' }, tr('Mover para…', 'Move to…')),
       ...Array.from({ length: n + 1 }, (_, k) =>
-        h('option', { value: k + 1, disabled: k + 1 === plate.index }, k < n ? `Mover para mesa ${k + 1}` : `Mover para mesa ${k + 1} (nova)`)),
+        h('option', { value: k + 1, disabled: k + 1 === plate.index }, k < n ? tr(`Mover para mesa ${k + 1}`, `Move to bed ${k + 1}`) : tr(`Mover para mesa ${k + 1} (nova)`, `Move to bed ${k + 1} (new)`))),
     )
     target.value = ''
     const msgs = issueText(it, issues[idx], items, bed)
     foot.append(
       h('b', null, `${it.label} #${it.copy}`),
       h('span', { class: 'mono muted' }, `${fmt(it.width)} × ${fmt(it.depth)} mm`),
-      h('button', { type: 'button', class: 'btn sm', onClick: () => rotate(key) }, icon('redo', 15), h('span', null, 'Girar 90° (R)')),
+      h('button', { type: 'button', class: 'btn sm', onClick: () => rotate(key) }, icon('redo', 15), h('span', null, tr('Girar 90° (R)', 'Rotate 90° (R)'))),
       target,
-      h('button', { type: 'button', class: 'btn sm ghost', onClick: () => { selKey = null; draw() } }, 'Soltar seleção'),
+      h('button', { type: 'button', class: 'btn sm ghost', onClick: () => { selKey = null; draw() } }, tr('Soltar seleção', 'Clear selection')),
       ...msgs.map((m) => h('span', { class: 'chip-sev error', role: 'alert' }, m)),
     )
   }
@@ -104,7 +105,7 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
     stage.textContent = ''
     foot.textContent = ''
     if (plates.length === 0 || st.result.parts.length === 0) {
-      stage.innerHTML = '<div class="empty"><b>Nenhuma peça gerada ainda</b><p>Quando houver peças, elas aparecem aqui distribuídas na mesa de impressão.</p></div>'
+      stage.innerHTML = `<div class="empty"><b>${tr('Nenhuma peça gerada ainda', 'No parts generated yet')}</b><p>${tr('Quando houver peças, elas aparecem aqui distribuídas na mesa de impressão.', 'When there are parts, they appear here laid out on the print bed.')}</p></div>`
       return
     }
     const i = Math.min(st.view.plate, plates.length - 1)
@@ -113,29 +114,29 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
     const hasLayout = Object.keys(st.plateLayout).length > 0
     const select = h(
       'select',
-      { 'aria-label': 'Mesa', onChange: (e: Event) => go(Number((e.target as HTMLSelectElement).value)) },
-      plates.map((pl, k) => h('option', { value: k, selected: k === i }, `Mesa ${pl.index}${pl.oversize ? ' (peça grande demais)' : ''}`)),
+      { 'aria-label': tr('Mesa', 'Bed'), onChange: (e: Event) => go(Number((e.target as HTMLSelectElement).value)) },
+      plates.map((pl, k) => h('option', { value: k, selected: k === i }, tr(`Mesa ${pl.index}${pl.oversize ? ' (peça grande demais)' : ''}`, `Bed ${pl.index}${pl.oversize ? ' (part too large)' : ''}`))),
     )
     select.value = String(i)
     append(bar, [
-      h('button', { type: 'button', class: 'btn sm ghost icon-only', 'aria-label': 'Mesa anterior', disabled: i === 0, onClick: () => go(i - 1) }, icon('up', 15)),
+      h('button', { type: 'button', class: 'btn sm ghost icon-only', 'aria-label': tr('Mesa anterior', 'Previous bed'), disabled: i === 0, onClick: () => go(i - 1) }, icon('up', 15)),
       select,
-      h('button', { type: 'button', class: 'btn sm ghost icon-only', 'aria-label': 'Próxima mesa', disabled: i >= plates.length - 1, onClick: () => go(i + 1) }, icon('down', 15)),
-      h('span', { class: 'mono muted' }, `${i + 1} de ${plates.length} · ${fmt(bed.x)} × ${fmt(bed.y)} mm · ${plate.items.length} ${plate.items.length === 1 ? 'peça' : 'peças'}`),
-      plate.oversize ? h('span', { class: 'chip-sev error' }, 'Maior que a mesa') : null,
+      h('button', { type: 'button', class: 'btn sm ghost icon-only', 'aria-label': tr('Próxima mesa', 'Next bed'), disabled: i >= plates.length - 1, onClick: () => go(i + 1) }, icon('down', 15)),
+      h('span', { class: 'mono muted' }, `${i + 1} ${tr('de', 'of')} ${plates.length} · ${fmt(bed.x)} × ${fmt(bed.y)} mm · ${plate.items.length} ${plate.items.length === 1 ? tr('peça', 'part') : tr('peças', 'parts')}`),
+      plate.oversize ? h('span', { class: 'chip-sev error' }, tr('Maior que a mesa', 'Larger than the bed')) : null,
       h('button', {
         type: 'button', class: 'btn sm', disabled: !selKey || !plate.items.some((it) => plateKey(it.partId, it.copy) === selKey),
-        title: 'Gira a peça selecionada em 90° (tecla R)', onClick: () => selKey && rotate(selKey),
-      }, icon('redo', 15), h('span', null, 'Girar 90°')),
+        title: tr('Gira a peça selecionada em 90° (tecla R)', 'Rotates the selected part by 90° (R key)'), onClick: () => selKey && rotate(selKey),
+      }, icon('redo', 15), h('span', null, tr('Girar 90°', 'Rotate 90°'))),
       h('button', {
         type: 'button', class: 'btn sm', disabled: !hasLayout,
-        title: 'Volta à distribuição automática das peças em todas as mesas', onClick: () => { selKey = null; st.resetPlateLayout() },
-      }, icon('reset', 15), h('span', null, 'Reorganizar')),
+        title: tr('Volta à distribuição automática das peças em todas as mesas', 'Goes back to the automatic layout of the parts on all beds'), onClick: () => { selKey = null; st.resetPlateLayout() },
+      }, icon('reset', 15), h('span', null, tr('Reorganizar', 'Rearrange'))),
       bedPicker(st, true),
     ])
 
     if (plate.items.length === 0) {
-      stage.innerHTML = '<div class="empty"><b>Mesa vazia</b><p>Selecione uma peça em outra mesa e use "Mover para…" para trazê-la para cá, ou clique em Reorganizar.</p></div>'
+      stage.innerHTML = `<div class="empty"><b>${tr('Mesa vazia', 'Empty bed')}</b><p>${tr('Selecione uma peça em outra mesa e use "Mover para…" para trazê-la para cá, ou clique em Reorganizar.', 'Select a part on another bed and use "Move to…" to bring it here, or click Rearrange.')}</p></div>`
       return
     }
 
@@ -143,7 +144,7 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
     const m = Math.max(bed.x, bed.y) * 0.05
     const fs = Math.max(bed.x, bed.y) * 0.022
     const issues = plateIssues(plate.items, bed, outlineOf)
-    const out = [`<svg viewBox="${-m} ${-m} ${bed.x + 2 * m} ${bed.y + 2 * m}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Mesa ${plate.index}">`]
+    const out = [`<svg viewBox="${-m} ${-m} ${bed.x + 2 * m} ${bed.y + 2 * m}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="${tr(`Mesa ${plate.index}`, `Bed ${plate.index}`)}">`]
     out.push(`<rect class="bed" x="0" y="0" width="${bed.x}" height="${bed.y}" rx="${m * 0.3}"/>`)
     plate.items.forEach((it, k) => {
       const key = plateKey(it.partId, it.copy)
@@ -155,7 +156,7 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
       const cx = bed.x / 2 + it.x
       const cy = bed.y / 2 - it.y
       const d = outlinePath(placedOutline(outlineOf(it), it), bed)
-      const name = `${it.label} #${it.copy}, ${fmt(it.width)} por ${fmt(it.depth)} milímetros`
+      const name = tr(`${it.label} #${it.copy}, ${fmt(it.width)} por ${fmt(it.depth)} milímetros`, `${it.label} #${it.copy}, ${fmt(it.width)} by ${fmt(it.depth)} millimetres`)
       out.push(
         `<g class="pitem${bad ? ' bad' : ''}${over ? ' over' : ''}${key === selKey ? ' sel' : ''}" data-i="${k}" data-key="${esc(key)}" tabindex="0" role="button" aria-label="${esc(name)}">` +
           `<title>${esc(it.label)} #${it.copy} · ${fmt(it.width)} × ${fmt(it.depth)} mm</title>` +

@@ -1,5 +1,6 @@
 import { regularPolygon, slotPoly, type HoleLevel, type Vec2 } from '../geom/mesh'
 import type { PanelSystem } from '../model/types'
+import { tr } from '../i18n'
 
 export const SKADIS = {
   slotW: 5,
@@ -74,15 +75,15 @@ export function panelThickness(
 ): { value: number; warnings: string[] } {
   const warnings: string[] = []
   if (system === 'hsw') {
-    if (requested !== 'auto') warnings.push('HSW: a espessura segue a versão (SD 8 mm, HD 10 mm); valor informado ignorado.')
+    if (requested !== 'auto') warnings.push(tr('HSW: a espessura segue a versão (SD 8 mm, HD 10 mm); valor informado ignorado.', 'HSW: the thickness follows the version (SD 8 mm, HD 10 mm); the given value is ignored.'))
     return { value: hsw === 'hd' ? HSW.hdThickness : HSW.sdThickness, warnings }
   }
   const def = system === 'skadis' ? SKADIS.defaultThickness : PEGBOARD.defaultThickness
   const max = system === 'skadis' ? SKADIS.maxThickness : PEGBOARD.maxThickness
   const min = system === 'skadis' ? SKADIS.minThickness : PEGBOARD.minThickness
   const value = requested === 'auto' ? def : requested
-  if (system === 'skadis' && value > max) warnings.push(`Skadis: acima de ${max} mm as garras dos ganchos não abraçam o furo.`)
-  if (value < min) warnings.push(`${system === 'skadis' ? 'Skadis' : 'Pegboard'}: espessura abaixo de ${min} mm fica frágil.`)
+  if (system === 'skadis' && value > max) warnings.push(tr(`Skadis: acima de ${max} mm as garras dos ganchos não abraçam o furo.`, `Skadis: above ${max} mm the hook claws do not grip the hole.`))
+  if (value < min) warnings.push(tr(`${system === 'skadis' ? 'Skadis' : 'Pegboard'}: espessura abaixo de ${min} mm fica frágil.`, `${system === 'skadis' ? 'Skadis' : 'Pegboard'}: thickness below ${min} mm is fragile.`))
   return { value, warnings }
 }
 
@@ -159,7 +160,7 @@ export function buildPanel(req: PanelRequest): PanelGeometry {
   const t = panelThickness(req.system, req.hswVariant, req.thickness)
   const centres = panelCentres(req)
   const warnings = [...t.warnings]
-  if (centres.length === 0) warnings.push('Face pequena demais para o padrão do painel: nenhum furo gerado.')
+  if (centres.length === 0) warnings.push(tr('Face pequena demais para o padrão do painel: nenhum furo gerado.', 'Face too small for the panel pattern: no holes generated.'))
   return {
     system: req.system,
     thickness: t.value,

@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { deriveNozzle, type NozzleOverrides } from './nozzle'
 
 export type Size = number | 'auto'
@@ -94,18 +95,22 @@ function checkAvailable(
   where: string,
   unit: string,
   warnings: Warning[],
+  unitEn: string,
+  whereEn: string,
 ): void {
+  const unitT = tr(unit, unitEn)
+  const whereT = tr(where, whereEn)
   if (res.leftover < -EPS) {
     warnings.push({
       code: 'overflow',
       where,
-      message: `${where}: as ${unit} fixas passam do espaço em ${(-res.leftover).toFixed(1)} mm.`,
+      message: tr(`${where}: as ${unit} fixas passam do espaço em ${(-res.leftover).toFixed(1)} mm.`, `${whereT}: the fixed ${unitT} exceed the available space by ${(-res.leftover).toFixed(1)} mm.`),
     })
   } else if (res.leftover > EPS) {
     warnings.push({
       code: 'leftover',
       where,
-      message: `${where}: sobram ${res.leftover.toFixed(1)} mm sem ${unit} definidas.`,
+      message: tr(`${where}: sobram ${res.leftover.toFixed(1)} mm sem ${unit} definidas.`, `${whereT}: ${res.leftover.toFixed(1)} mm left without defined ${unitT}.`),
     })
   }
 }
@@ -121,13 +126,13 @@ export function computeLayout(input: LayoutInput): Layout {
 
   const nSections = input.sections.length
   if (nSections === 0 || !(input.width > 0 && input.height > 0 && input.depth > 0)) {
-    warnings.push({ code: 'invalid-input', message: 'Informe largura, altura, profundidade e ao menos uma seção.' })
+    warnings.push({ code: 'invalid-input', message: tr('Informe largura, altura, profundidade e ao menos uma seção.', 'Enter width, height, depth and at least one section.') })
     return { wallStructural: t, bays, warnings }
   }
 
   const innerW = input.width - 2 * t - (nSections - 1) * t
   const secs = resolveSizes(input.sections.map((s) => s.width), innerW)
-  checkAvailable(secs, 'Seções', 'larguras', warnings)
+  checkAvailable(secs, 'Seções', 'larguras', warnings, 'widths', 'Sections')
 
   const clearDepth = input.depth - t
   let x = t
@@ -136,7 +141,7 @@ export function computeLayout(input: LayoutInput): Layout {
     const nRows = section.rows.length
     const innerH = input.height - 2 * t - Math.max(0, nRows - 1) * t
     const rows = resolveSizes(section.rows.map((r) => r.height), innerH)
-    checkAvailable(rows, `Seção ${si + 1}`, 'alturas', warnings)
+    checkAvailable(rows, `Seção ${si + 1}`, 'alturas', warnings, 'heights', `Section ${si + 1}`)
 
     let yTop = input.height - t
     section.rows.forEach((row, ri) => {
@@ -148,10 +153,10 @@ export function computeLayout(input: LayoutInput): Layout {
         const id = `BAY_S${si + 1}_R${ri + 1}_C${ci + 1}`
         const bx = x + ci * (cellW + t)
         if (cellW < MIN_BAY_WIDTH) {
-          warnings.push({ code: 'bay-too-narrow', where: id, message: `${id}: largura útil de ${cellW.toFixed(1)} mm (mínimo ${MIN_BAY_WIDTH}).` })
+          warnings.push({ code: 'bay-too-narrow', where: id, message: tr(`${id}: largura útil de ${cellW.toFixed(1)} mm (mínimo ${MIN_BAY_WIDTH}).`, `${id}: usable width of ${cellW.toFixed(1)} mm (minimum ${MIN_BAY_WIDTH}).`) })
         }
         if (rowH < MIN_BAY_HEIGHT) {
-          warnings.push({ code: 'bay-too-short', where: id, message: `${id}: altura útil de ${rowH.toFixed(1)} mm (mínimo ${MIN_BAY_HEIGHT}).` })
+          warnings.push({ code: 'bay-too-short', where: id, message: tr(`${id}: altura útil de ${rowH.toFixed(1)} mm (mínimo ${MIN_BAY_HEIGHT}).`, `${id}: usable height of ${rowH.toFixed(1)} mm (minimum ${MIN_BAY_HEIGHT}).`) })
         }
         bays.push({
           id,

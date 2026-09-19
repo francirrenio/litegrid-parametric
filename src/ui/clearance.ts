@@ -34,7 +34,7 @@ export function computeClearances(result: GenerateResult): BayClearance[] {
   for (const bay of result.layout.bays) {
     let best: { lo: number[]; hi: number[]; vol: number } | undefined
     for (const part of result.parts) {
-      if (part.group !== 'gaveta' || !part.label.startsWith('Gaveta')) continue
+      if (part.group !== 'gaveta' || !/^(Gaveta|Drawer)/.test(part.label)) continue
       part.instances.forEach((_, i) => {
         const b = instanceBox(part, i)
         const cx = (b.lo[0]! + b.hi[0]!) / 2

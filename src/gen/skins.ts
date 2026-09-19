@@ -12,6 +12,7 @@ import { faceFrame, faceMatrix } from './faces'
 import { skeletonMetrics, skinThickness, type SkeletonMetrics } from './metrics'
 import { buildPanel, PANEL_STANDOFF, type PanelGeometry } from './panels'
 import { generatePattern } from './patterns'
+import { tr } from '../i18n'
 
 export const M3_CLEARANCE = 3.4
 export const DEFAULT_POCKET_DEPTH = 12
@@ -95,7 +96,7 @@ function faceSkin(
   let standoff = cfg.standoff
   if (standoff === 'pockets' && !(isPanel && cfg.panelSystem === 'skadis')) {
     standoff = 'spacers'
-    notes.push('Bolsos só existem no Skadis: usando espaçadores.')
+    notes.push(tr('Bolsos só existem no Skadis: usando espaçadores.', 'Pockets only exist on Skadis: using spacers.'))
   }
   let offset = 0
   let pocketDepth = 0
@@ -126,11 +127,11 @@ function faceSkin(
   let attach: Attach = cfg.attach === 'glue' ? 'none' : cfg.attach === 'screws' ? 'screws' : 'pegs'
   if (attach === 'pegs' && offset > 0) {
     attach = 'screws'
-    notes.push('Com espaçadores os pinos da skin não alcançam o esqueleto: fixação por parafuso M3 passante.')
+    notes.push(tr('Com espaçadores os pinos da skin não alcançam o esqueleto: fixação por parafuso M3 passante.', 'With spacers the skin pegs do not reach the skeleton: fixed with a through M3 screw.'))
   }
   if (attach === 'pegs' && isPanel && cfg.panelSystem === 'hsw') {
     attach = 'screws'
-    notes.push('HSW imprime com a face da frente para cima, sem pinos no verso: fixação por parafuso M3.')
+    notes.push(tr('HSW imprime com a face da frente para cima, sem pinos no verso: fixação por parafuso M3.', 'HSW prints with the front face up, with no pegs on the back: fixed with an M3 screw.'))
   }
   const flip = attach === 'pegs' || pocketDepth > 0
 
@@ -157,7 +158,7 @@ function faceSkin(
       upright: false,
     })
     notes.push(...pat.warnings)
-    if (truss) notes.push('Treliça: malha triangular de barras (Warren) com moldura.')
+    if (truss) notes.push(tr('Treliça: malha triangular de barras (Warren) com moldura.', 'Truss: triangular mesh of bars (Warren) with a frame.'))
     plate = extrude(rect, [...pat.holes, ...screwHoles], 0, thickness)
   }
 
@@ -170,14 +171,14 @@ function faceSkin(
   if (pocketDepth > 0 && panel) {
     const wall = Math.round(nz.wall(3) * 10) / 10
     for (const [x, y] of panel.centres) solids.push(pocketMesh(x, y, pocketDepth, wall))
-    notes.push(`Bolsos de ${pocketDepth} mm por fenda avançam para dentro do gabinete: conferir a folga com as gavetas.`)
+    notes.push(tr(`Bolsos de ${pocketDepth} mm por fenda avançam para dentro do gabinete: conferir a folga com as gavetas.`, `${pocketDepth} mm pockets per slot protrude into the cabinet: check the clearance with the drawers.`))
   }
 
   const label = isPanel ? `Skin ${cfg.panelSystem.toUpperCase()}` : 'Skin'
   const orientNote = flip
-    ? 'Imprimir com a face externa na mesa (pinos/bolsos para cima).'
-    : 'Imprimir deitada, face externa para cima.'
-  const spacerNote = offset > 0 ? ` Afastada ${offset} mm do esqueleto por espaçadores.` : ''
+    ? tr('Imprimir com a face externa na mesa (pinos/bolsos para cima).', 'Print with the outer face on the bed (pegs/pockets facing up).')
+    : tr('Imprimir deitada, face externa para cima.', 'Print lying flat, outer face up.')
+  const spacerNote = offset > 0 ? tr(` Afastada ${offset} mm do esqueleto por espaçadores.`, ` Offset ${offset} mm from the skeleton by spacers.`) : ''
   const parts: Part[] = [
     makePart({
       id: `SKIN_${upper(face)}`,
@@ -198,12 +199,12 @@ function faceSkin(
     parts.push(
       makePart({
         id: `ESPACADOR_${upper(face)}`,
-        label: `Espaçador ${face} (${offset} mm)`,
+        label: `${tr('Espaçador', 'Spacer')} ${face} (${offset} mm)`,
         group: 'espacador',
         assembled: spacerMesh(base, top, offset, M3_CLEARANCE),
         placements: anchors.points.map(([u, v]) => mat4Mul(fm, mat4Translate(u, v, 0))),
         color: cfg.color,
-        note: `Calço cônico ${base.toFixed(1)} mm com furo M3, impresso em pé (base larga na mesa). Um por âncora do esqueleto.`,
+        note: tr(`Calço cônico ${base.toFixed(1)} mm com furo M3, impresso em pé (base larga na mesa). Um por âncora do esqueleto.`, `Conical shim ${base.toFixed(1)} mm with an M3 hole, printed standing (wide base on the bed). One per skeleton anchor.`),
       }),
     )
   }

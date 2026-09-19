@@ -7,6 +7,7 @@ import { boxOf, knobFor, NO_SEAMS, planSeams, seamPostWidth, seamZones, splitAt,
 import {
   backPlane, diff, EMPTY, framePlane, planeBar, planeCircle, planeRect, shelfPlane, union, type Plane, type Shape,
 } from './plate2d'
+import { tr } from '../i18n'
 
 export type PlateKind = 'costas' | 'base' | 'topo' | 'quadro' | 'divisoria' | 'prateleira'
 
@@ -230,7 +231,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     }
     for (const [u, v] of anchors('back').points) cuts.push(planeCircle(pl, W - u, v, skeletonMetrics(p, nz).holeD / 2 + fit / 2))
     shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
-    plates.push({ key: 'costas', kind: 'costas', label: 'Costas', step: 1, thickness: t, plane: pl, shape, matrix: pl.matrix, seams })
+    plates.push({ key: 'costas', kind: 'costas', label: tr('Costas', 'Back'), step: 1, thickness: t, plane: pl, shape, matrix: pl.matrix, seams })
   }
 
   /* ── base and top plates (XZ) ───────────────────────────────── */
@@ -264,7 +265,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     }
     shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
     return {
-      key: kind, kind, label: kind === 'base' ? 'Base' : 'Topo', step: kind === 'base' ? 2 : 5,
+      key: kind, kind, label: kind === 'base' ? tr('Base', 'Base') : tr('Topo', 'Top'), step: kind === 'base' ? 2 : 5,
       thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
     }
   }
@@ -308,7 +309,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     if (k === frames.length - 1) for (const [u, v] of anchors('right').points) cuts.push(planeCircle(pl, D - u, v, hole))
     shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
     plates.push({
-      key: `quadro-${k}`, kind: 'quadro', label: k === 0 || k === frames.length - 1 ? 'Quadro lateral' : 'Quadro divisor',
+      key: `quadro-${k}`, kind: 'quadro', label: k === 0 || k === frames.length - 1 ? tr('Quadro lateral', 'Side frame') : tr('Quadro divisor', 'Divider frame'),
       step: 3, thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
     })
   })
@@ -331,7 +332,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     const cuts: Shape[] = []
     if (yb - ya >= 10 && D - 2 * bw - t >= 10) cuts.push(brace(pl, t + bw, D - bw, ya, yb, brMode, false, bw))
     plates.push({
-      key: `div-${r2(xd)}-${r2(row.y)}`, kind: 'divisoria', label: 'Divisória', step: 3,
+      key: `div-${r2(xd)}-${r2(row.y)}`, kind: 'divisoria', label: tr('Divisória', 'Divider'), step: 3,
       thickness: t, plane: pl, shape: diff(shape, ...cleanWins(cuts, zones)), matrix: pl.matrix, seams,
     })
   })))
@@ -365,13 +366,13 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       const mode = shelfMode(level, sh.loadAbove, false)
       shape = diff(shape, ...slots, ...cleanWins(shelfWindows(pl, mode, xa, xb, t, D, bw, divs.map(sepBar)), zones))
       plates.push({
-        key: `prat-${s}-${r2(sh.y)}`, kind: 'prateleira', label: 'Prateleira', step: 4,
+        key: `prat-${s}-${r2(sh.y)}`, kind: 'prateleira', label: tr('Prateleira', 'Shelf'), step: 4,
         thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
       })
     }
   })
 
-  if (p.skeleton.bracing === 'none') warnings.push('Sem travamento: o esqueleto pode deformar como paralelogramo. Use diagonais, esquadros ou costas fechadas.')
+  if (p.skeleton.bracing === 'none') warnings.push(tr('Sem travamento: o esqueleto pode deformar como paralelogramo. Use diagonais, esquadros ou costas fechadas.', 'No bracing: the skeleton can deform like a parallelogram. Use diagonals, gussets or a closed back.'))
   const finalPlates: SkeletonPlate[] = []
   for (const pl of plates) {
     const pieces = joinery ? splitAt(pl.shape, pl.seams, fit, seamPostWidth(bw)) : [pl.shape]
@@ -384,7 +385,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
         label: many ? `${pl.label} (${i + 1}/${pieces.length})` : pl.label,
       })
     })
-    if (pieces.length > 1) warnings.push(`${pl.label} passa da mesa e foi dividida em ${pieces.length} partes com encaixe no plano.`)
+    if (pieces.length > 1) warnings.push(tr(`${pl.label} passa da mesa e foi dividida em ${pieces.length} partes com encaixe no plano.`, `${pl.label} exceeds the bed and was split into ${pieces.length} parts with an in-plane joint.`))
   }
   return { W, H, D, t, bw, fit, frames, sections, plates: finalPlates, warnings }
 }

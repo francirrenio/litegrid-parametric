@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import type { ProjectState } from '../model/types'
 import { exportProjectText, importProjectText } from './storage'
 
@@ -32,7 +33,7 @@ export async function decodeProject(code: string): Promise<ProjectState> {
   try {
     text = new TextDecoder().decode(await pipe(fromB64Url(code), new DecompressionStream('deflate-raw')))
   } catch {
-    throw new Error('O link de compartilhamento está incompleto ou danificado.')
+    throw new Error(tr('O link de compartilhamento está incompleto ou danificado.', 'The share link is incomplete or damaged.'))
   }
   return importProjectText(text)
 }

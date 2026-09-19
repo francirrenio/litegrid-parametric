@@ -5,6 +5,7 @@ import { planPlates, plateMeshes, type Plate, type PlateOverrides } from './plat
 import { stlBlob, stlBytes } from './stl'
 import { threeMfBlob } from './threemf'
 import { zipStore, type ZipFile } from './zip'
+import { tr } from '../i18n'
 
 export { planPlates, plateMeshes, plateKey } from './plates'
 export type { Plate, PlateItem, PlateOverride, PlateOverrides } from './plates'
@@ -59,20 +60,20 @@ export function slicerProfileText(project: ProjectState, parts: Part[]): string 
   }
   for (const p of parts) groups.set(p.group, perim(p.group))
   const lines = [
-    `Perfil recomendado - ${project.name}`,
+    tr(`Perfil recomendado - ${project.name}`, `Recommended profile - ${project.name}`),
     '',
-    `Bico: ${nz.nozzle} mm | largura de linha: ${nz.lineWidth.toFixed(2)} mm | altura de camada: ${nz.layerHeight.toFixed(2)} mm`,
-    'Preenchimento (infill): 0 %  (a rigidez vem da geometria e dos perímetros)',
-    `Camadas sólidas de topo e base: ${topBottom}`,
-    'Suportes: desligados (nenhuma peça precisa)',
-    'Posição da costura: traseira ou alinhada, de preferência em cantos internos',
-    'Gerador de paredes: Arachne, se disponível (paredes finas de largura variável)',
-    'Aba de aderência (brim): desligada, salvo peças altas e finas',
+    tr(`Bico: ${nz.nozzle} mm | largura de linha: ${nz.lineWidth.toFixed(2)} mm | altura de camada: ${nz.layerHeight.toFixed(2)} mm`, `Nozzle: ${nz.nozzle} mm | line width: ${nz.lineWidth.toFixed(2)} mm | layer height: ${nz.layerHeight.toFixed(2)} mm`),
+    tr('Preenchimento (infill): 0 %  (a rigidez vem da geometria e dos perímetros)', 'Infill: 0 %  (stiffness comes from the geometry and the perimeters)'),
+    tr(`Camadas sólidas de topo e base: ${topBottom}`, `Solid top and bottom layers: ${topBottom}`),
+    tr('Suportes: desligados (nenhuma peça precisa)', 'Supports: off (no part needs them)'),
+    tr('Posição da costura: traseira ou alinhada, de preferência em cantos internos', 'Seam position: rear or aligned, preferably in inner corners'),
+    tr('Gerador de paredes: Arachne, se disponível (paredes finas de largura variável)', 'Wall generator: Arachne, if available (thin walls of variable width)'),
+    tr('Aba de aderência (brim): desligada, salvo peças altas e finas', 'Brim: off, except for tall, thin parts'),
     '',
-    'Perímetros por grupo de peças:',
+    tr('Perímetros por grupo de peças:', 'Perimeters per part group:'),
     ...[...groups].map(([g, n]) => `  ${g}: ${n}`),
     '',
-    'Paredes de 1 perímetro só onde a peça descreve nervuras internas; não force preenchimento.',
+    tr('Paredes de 1 perímetro só onde a peça descreve nervuras internas; não force preenchimento.', '1-perimeter walls only where the part describes internal ribs; do not force infill.'),
   ]
   return lines.join('\n')
 }
@@ -84,28 +85,28 @@ export function assemblyGuide(result: GenerateResult, project: ProjectState): st
     .sort((a, b) => (a.assemblyStep ?? 99) - (b.assemblyStep ?? 99) || a.group.localeCompare(b.group) || a.label.localeCompare(b.label))
   const fmt = (n: number) => n.toFixed(1)
   const out = [
-    `# Guia de montagem - ${project.name}`,
+    tr(`# Guia de montagem - ${project.name}`, `# Assembly guide - ${project.name}`),
     '',
-    `Gabinete ${fmt(project.width)} x ${fmt(project.height)} x ${fmt(project.depth)} mm (largura x altura x profundidade), esqueleto sem paredes externas.`,
+    tr(`Gabinete ${fmt(project.width)} x ${fmt(project.height)} x ${fmt(project.depth)} mm (largura x altura x profundidade), esqueleto sem paredes externas.`, `Cabinet ${fmt(project.width)} x ${fmt(project.height)} x ${fmt(project.depth)} mm (width x height x depth), skeleton without outer walls.`),
     '',
-    '## Lista de peças',
+    tr('## Lista de peças', '## Parts list'),
     '',
-    '| Passo | Peça | Grupo | Qtd | Tamanho na mesa (mm) | Observação |',
+    tr('| Passo | Peça | Grupo | Qtd | Tamanho na mesa (mm) | Observação |', '| Step | Part | Group | Qty | Size on the bed (mm) | Note |'),
     '|---|---|---|---|---|---|',
     ...rows.map(
       (p) =>
         `| ${p.assemblyStep ?? '-'} | ${p.label} | ${p.group} | ${p.instances.length} | ${p.size.map(fmt).join(' x ')} | ${p.note ?? ''} |`,
     ),
     '',
-    '## Ordem sugerida',
+    tr('## Ordem sugerida', '## Suggested order'),
     '',
-    '1. Imprima todas as peças do grupo "gabinete" e confira o encaixe de uma aba em uma ranhura antes de imprimir o resto.',
-    '2. Monte as costas e a base, encaixe os quadros verticais e depois as prateleiras e o topo. As abas ficam rentes à face externa; use uma gota de cola nas juntas se quiser.',
-    '3. Encaixe as gavetas. Skins, espaçadores e fixações entram por último e podem ser impressos depois.',
+    tr('1. Imprima todas as peças do grupo "gabinete" e confira o encaixe de uma aba em uma ranhura antes de imprimir o resto.', '1. Print all the parts of the "gabinete" group and check how a tab fits into a slot before printing the rest.'),
+    tr('2. Monte as costas e a base, encaixe os quadros verticais e depois as prateleiras e o topo. As abas ficam rentes à face externa; use uma gota de cola nas juntas se quiser.', '2. Assemble the back and the base, fit the vertical frames, then the shelves and the top. The tabs sit flush with the outer face; use a drop of glue on the joints if you like.'),
+    tr('3. Encaixe as gavetas. Skins, espaçadores e fixações entram por último e podem ser impressos depois.', '3. Fit the drawers. Skins, spacers and fixings go in last and can be printed afterwards.'),
     '',
   ]
   if (result.warnings.length) {
-    out.push('## Avisos', '', ...result.warnings.map((w) => `- ${w.message}`), '')
+    out.push(tr('## Avisos', '## Warnings'), '', ...result.warnings.map((w) => `- ${w.message}`), '')
   }
   return out.join('\n')
 }

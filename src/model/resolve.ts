@@ -1,4 +1,5 @@
 import type { DrawerConfig, ProjectState } from './types'
+import { tr } from '../i18n'
 
 /** Drawer settings cascade: global defaults, then section, then row, then the single drawer. */
 export type Level = 'global' | 'section' | 'row' | 'bay'
@@ -14,7 +15,7 @@ export interface Scope {
 
 export const GLOBAL_SCOPE: Scope = { level: 'global', section: null, row: null, bay: null }
 
-export const LEVEL_LABEL: Record<Level, string> = { global: 'Padrão', section: 'Seção', row: 'Fila', bay: 'Gaveta' }
+export const LEVEL_LABEL: Record<Level, string> = { global: tr('Padrão', 'Default'), section: tr('Seção', 'Section'), row: tr('Fila', 'Row'), bay: tr('Gaveta', 'Drawer') }
 
 const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
 

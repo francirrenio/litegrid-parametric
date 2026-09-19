@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import type { Part, PartGroup } from '../model/part'
 
 export interface AssemblyStep {
@@ -17,14 +18,14 @@ export function stepOf(group: PartGroup, step?: number): number | null {
 }
 
 const TEXT: Record<number, [string, string]> = {
-  1: ['Costas', 'Apoie a placa das costas na mesa. Ela é a referência de todo o resto.'],
-  2: ['Base', 'Encaixe a base nas costas: as abas entram nas ranhuras. Sem cola no começo.'],
-  3: ['Laterais, divisórias e quadros', 'Encaixe as laterais e divisórias nas ranhuras da base e das costas. Confira que estão retas.'],
-  4: ['Prateleiras', 'Encaixe as prateleiras nas ranhuras das laterais, uma a uma.'],
-  5: ['Topo', 'Feche a estrutura com o topo. Se as abas estiverem justas, bata de leve com a palma da mão.'],
-  6: ['Gavetas', 'Deslize cada gaveta no seu vão. Elas correm sem cola.'],
-  7: ['Painéis e espaçadores', 'Coloque os painéis frontais e espaçadores. Podem ser colados se quiser fixar.'],
-  8: ['Fixações', 'Prenda o gabinete na parede ou em outro gabinete com as peças de fixação.'],
+  1: [tr('Costas', 'Back'), tr('Apoie a placa das costas na mesa. Ela é a referência de todo o resto.', 'Rest the back plate on the table. It is the reference for everything else.')],
+  2: ['Base', tr('Encaixe a base nas costas: as abas entram nas ranhuras. Sem cola no começo.', 'Fit the base onto the back: the tabs go into the slots. No glue at first.')],
+  3: [tr('Laterais, divisórias e quadros', 'Sides, dividers and frames'), tr('Encaixe as laterais e divisórias nas ranhuras da base e das costas. Confira que estão retas.', 'Fit the sides and dividers into the slots of the base and back. Check that they are straight.')],
+  4: [tr('Prateleiras', 'Shelves'), tr('Encaixe as prateleiras nas ranhuras das laterais, uma a uma.', 'Fit the shelves into the slots of the sides, one by one.')],
+  5: [tr('Topo', 'Top'), tr('Feche a estrutura com o topo. Se as abas estiverem justas, bata de leve com a palma da mão.', 'Close the frame with the top. If the tabs are tight, tap gently with the palm of your hand.')],
+  6: [tr('Gavetas', 'Drawers'), tr('Deslize cada gaveta no seu vão. Elas correm sem cola.', 'Slide each drawer into its bay. They run without glue.')],
+  7: [tr('Painéis e espaçadores', 'Panels and spacers'), tr('Coloque os painéis frontais e espaçadores. Podem ser colados se quiser fixar.', 'Place the front panels and spacers. They can be glued if you want them fixed.')],
+  8: [tr('Fixações', 'Fasteners'), tr('Prenda o gabinete na parede ou em outro gabinete com as peças de fixação.', 'Fasten the cabinet to the wall or to another cabinet with the fastening parts.')],
 }
 
 /** The ordered assembly steps of this result, with the parts that go in at each one. */
@@ -39,7 +40,7 @@ export function assemblySteps(parts: Part[]): AssemblyStep[] {
   return [...by.keys()]
     .sort((a, b) => a - b)
     .map((s, i) => {
-      const [title, text] = TEXT[s] ?? [`Passo ${s}`, 'Encaixe as peças.']
+      const [title, text] = TEXT[s] ?? [tr(`Passo ${s}`, `Step ${s}`), tr('Encaixe as peças.', 'Fit the parts together.')]
       return { n: i + 1, title, text, parts: [...by.get(s)!] }
     })
 }

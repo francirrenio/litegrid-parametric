@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import type { GenerateResult, PartGroup } from '../model/part'
 import { isPartHidden, partFamily, type Visibility } from './appearance'
 import { instanceBox } from './bounds'
@@ -36,14 +37,14 @@ export interface HiddenEntry {
 /** What is hidden in this bay and the single action that brings it back. */
 export function hiddenInBay(result: GenerateResult, vis: Visibility, bayId: string): HiddenEntry[] {
   const out = new Map<string, HiddenEntry>()
-  if (vis.isolateBay && vis.isolateBay !== bayId) out.set('all', { kind: 'all', id: 'all', label: 'tudo' })
+  if (vis.isolateBay && vis.isolateBay !== bayId) out.set('all', { kind: 'all', id: 'all', label: tr('tudo', 'everything') })
   for (const p of partsInBay(result, bayId)) {
     if (vis.isolate && (partFamily(vis.isolate) !== partFamily(p.id) || vis.isolateOne)) {
-      out.set('all', { kind: 'all', id: 'all', label: 'tudo' })
+      out.set('all', { kind: 'all', id: 'all', label: tr('tudo', 'everything') })
     } else if (isPartHidden(vis, p.id)) {
       out.set(`part:${p.id}`, { kind: 'part', id: p.id, label: p.label })
     } else if (vis.hiddenGroups.includes(p.group)) {
-      out.set(`group:${p.group}`, { kind: 'group', id: p.group, label: 'todas as gavetas' })
+      out.set(`group:${p.group}`, { kind: 'group', id: p.group, label: tr('todas as gavetas', 'all drawers') })
     }
   }
   return [...out.values()]

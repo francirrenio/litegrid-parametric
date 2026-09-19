@@ -13,6 +13,7 @@ import {
   chamfers, faceHoles, frameOf, GROOVE_DEPTH, grooveRibs, reinforcement, resolveReinforcement, rims, topAt,
   wallPlates, type DrawerCtx,
 } from './drawer-walls'
+import { tr } from '../i18n'
 
 const MAX_SLOTS = 6
 const OV = 0.3
@@ -124,14 +125,14 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
       return mat4Translate(x - ox, y - oy, z - oz)
     })
     const hash = hashString(g.key)
-    const baseLabel = `Gaveta ${Math.round(d.width)}x${Math.round(d.height)}`
+    const baseLabel = `${tr('Gaveta', 'Drawer')} ${Math.round(d.width)}x${Math.round(d.height)}`
     const n = (labelCount.get(baseLabel) ?? 0) + 1
     labelCount.set(baseLabel, n)
     const c = built.ctx
     const hints = [
-      'Imprimir de pé, apoiada no fundo, sem suportes.',
-      c.reinf !== 'none' && c.reinf !== 'auto' ? `Reforço das paredes: ${c.reinf}.` : '',
-      g.cfg.perimeters < 2 ? 'Com 1 perímetro a parede fica frágil.' : '',
+      tr('Imprimir de pé, apoiada no fundo, sem suportes.', 'Print standing on the bottom, without supports.'),
+      c.reinf !== 'none' && c.reinf !== 'auto' ? tr(`Reforço das paredes: ${c.reinf}.`, `Wall reinforcement: ${c.reinf}.`) : '',
+      g.cfg.perimeters < 2 ? tr('Com 1 perímetro a parede fica frágil.', 'With 1 perimeter the wall is fragile.') : '',
     ].filter(Boolean)
     parts.push(makePart({
       id: `gaveta-${Math.round(d.width)}x${Math.round(d.height)}x${Math.round(d.depth)}-${hash}`,
@@ -164,22 +165,22 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
       }
       parts.push(makePart({
         id: `divisoria-${Math.round(d.width)}x${Math.round(d.depth)}-${hash}`,
-        label: n > 1 ? `Divisória ${Math.round(d.width)}x${Math.round(d.height)} (${String.fromCharCode(64 + n)})` : `Divisória ${Math.round(d.width)}x${Math.round(d.height)}`,
+        label: n > 1 ? `${tr('Divisória', 'Divider')} ${Math.round(d.width)}x${Math.round(d.height)} (${String.fromCharCode(64 + n)})` : `${tr('Divisória', 'Divider')} ${Math.round(d.width)}x${Math.round(d.height)}`,
         group: 'gaveta',
         assembled: refMesh,
         placements: divPlacements,
-        note: 'Imprimir deitada. Encaixa nas ranhuras das laterais da gaveta.',
+        note: tr('Imprimir deitada. Encaixa nas ranhuras das laterais da gaveta.', 'Print lying flat. Fits into the slots on the sides of the drawer.'),
       }))
     }
   }
   for (const [hk, { spec, placements }] of holders) {
     parts.push(makePart({
       id: `porta-etiqueta-${hk}`,
-      label: `Porta-etiqueta ${Math.round(spec.lw)}x${Math.round(spec.lh)}`,
+      label: `${tr('Porta-etiqueta', 'Label holder')} ${Math.round(spec.lw)}x${Math.round(spec.lh)}`,
       group: 'gaveta',
       assembled: labelHolderMesh(spec, nz),
       placements,
-      note: 'Imprimir deitada, sem suportes. Cole na frente da gaveta; a etiqueta de papel desliza por cima.',
+      note: tr('Imprimir deitada, sem suportes. Cole na frente da gaveta; a etiqueta de papel desliza por cima.', 'Print lying flat, without supports. Glue it to the front of the drawer; the paper label slides in over it.'),
     }))
   }
   void OV

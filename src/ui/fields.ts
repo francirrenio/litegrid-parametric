@@ -1,4 +1,5 @@
 import { LEVEL_LABEL, type Level } from '../model/resolve'
+import { tr } from '../i18n'
 import { h, icon, uid, type Child } from './dom'
 import type { Store } from './state'
 
@@ -19,7 +20,7 @@ export function originBadge(m: Model<never>): HTMLElement | null {
   if (!o) return null
   const badge = h(
     'span',
-    { class: 'lvl lvl-' + o.level + (o.here ? ' here' : ''), title: o.here ? 'Definido neste nível (' + LEVEL_LABEL[o.level] + ')' : 'Herdado de: ' + LEVEL_LABEL[o.level] },
+    { class: 'lvl lvl-' + o.level + (o.here ? ' here' : ''), title: o.here ? tr('Definido neste nível (', 'Set at this level (') + LEVEL_LABEL[o.level] + ')' : tr('Herdado de: ', 'Inherited from: ') + LEVEL_LABEL[o.level] },
     LEVEL_LABEL[o.level],
   )
   const reset = mm.reset
@@ -28,7 +29,7 @@ export function originBadge(m: Model<never>): HTMLElement | null {
       'span',
       { class: 'origin' },
       badge,
-      h('button', { type: 'button', class: 'lvl-x', title: 'Voltar a herdar', 'aria-label': 'Voltar a herdar', onClick: () => reset() }, '×'),
+      h('button', { type: 'button', class: 'lvl-x', title: tr('Voltar a herdar', 'Inherit again'), 'aria-label': tr('Voltar a herdar', 'Inherit again'), onClick: () => reset() }, '×'),
     )
   }
   return badge
@@ -44,11 +45,17 @@ export function pathModel<T>(st: Store, path: string): Model<T> {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-export function field(label: string, control: Child, opts: { id?: string; hint?: string; extra?: Child; model?: Model<never> } = {}): HTMLElement {
+/** Small focusable "?" marker; the text shows as native title and as a CSS popover. */
+export function tipEl(tip?: string): HTMLElement | null {
+  if (!tip) return null
+  return h('span', { class: 'tip', tabindex: '0', role: 'img', 'aria-label': tip, title: tip, 'data-tip': tip }, '?')
+}
+
+export function field(label: string, control: Child, opts: { id?: string; hint?: string; tip?: string; extra?: Child; model?: Model<never> } = {}): HTMLElement {
   return h(
     'div',
     { class: 'field' },
-    h('div', { class: 'field-head' }, h('label', { class: 'lbl', for: opts.id }, label), opts.extra, opts.model ? originBadge(opts.model) : null),
+    h('div', { class: 'field-head' }, h('label', { class: 'lbl', for: opts.id }, label), tipEl(opts.tip), opts.extra, opts.model ? originBadge(opts.model) : null),
     control,
     opts.hint ? h('p', { class: 'hint' }, opts.hint) : null,
   )
@@ -64,6 +71,7 @@ export interface NumOpts {
   sliderMax?: number
   rebuild?: boolean
   hint?: string
+  tip?: string
 }
 
 export function numField(m: Model<number>, label: string, o: NumOpts): HTMLElement {
@@ -102,7 +110,7 @@ export function numField(m: Model<number>, label: string, o: NumOpts): HTMLEleme
     })
   }
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
-  return field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint, model: m as Model<never> })
+  return field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
 }
 
 export interface AutoOpts extends NumOpts {
@@ -117,9 +125,9 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
   const isAuto = cur === 'auto'
   const input = h('input', {
     type: 'number', id, min: o.min, max: o.max, step: o.step ?? 1, inputmode: 'decimal', 'data-key': m.key,
-    value: isAuto ? '' : cur, placeholder: o.autoText ?? 'auto', disabled: isAuto,
+    value: isAuto ? '' : cur, placeholder: o.autoText ?? tr('auto', 'auto'), disabled: isAuto,
   })
-  const chk = h('input', { type: 'checkbox', checked: isAuto, 'aria-label': `${label}: automático` })
+  const chk = h('input', { type: 'checkbox', checked: isAuto, 'aria-label': `${label}: ${tr('automático', 'automatic')}` })
   let last = typeof cur === 'number' ? cur : (o.fallback ?? o.min)
   chk.addEventListener('change', () => {
     if (chk.checked) {
@@ -147,8 +155,8 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
     m.set(v, !!o.rebuild)
   })
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
-  const auto = h('label', { class: 'auto-chk' }, chk, h('span', null, 'auto'))
-  return field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint, model: m as Model<never> })
+  const auto = h('label', { class: 'auto-chk' }, chk, h('span', null, tr('auto', 'auto')))
+  return field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
 }
 
 /** Empty = automatic (undefined), with a restore button. */
@@ -173,21 +181,21 @@ export function optField(m: Model<number | undefined>, label: string, o: NumOpts
   const restore = h(
     'button',
     {
-      type: 'button', class: 'btn sm ghost', title: 'Voltar ao automático',
+      type: 'button', class: 'btn sm ghost', title: tr('Voltar ao automático', 'Back to automatic'),
       onClick: () => {
         input.value = ''
         m.set(undefined, false)
       },
     },
     icon('reset', 14),
-    h('span', null, 'restaurar'),
+    h('span', null, tr('restaurar', 'reset')),
   )
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
-  return field(label, h('div', { class: 'numrow' }, box, restore), { id, hint: o.hint })
+  return field(label, h('div', { class: 'numrow' }, box, restore), { id, hint: o.hint, tip: o.tip })
 }
 
 export function selectField<T extends string>(
-  m: Model<T>, label: string, options: Array<[T, string]>, o: { rebuild?: boolean; hint?: string } = {},
+  m: Model<T>, label: string, options: Array<[T, string]>, o: { rebuild?: boolean; hint?: string; tip?: string } = {},
 ): HTMLElement {
   const id = uid()
   const sel = h(
@@ -197,11 +205,11 @@ export function selectField<T extends string>(
   )
   sel.value = m.get()
   sel.addEventListener('change', () => m.set(sel.value as T, !!o.rebuild))
-  return field(label, sel, { id, hint: o.hint, model: m as Model<never> })
+  return field(label, sel, { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
 }
 
 export function chips<T extends string | number>(
-  m: Model<T>, label: string, options: Array<[T, string]>, o: { rebuild?: boolean; hint?: string; extra?: Child } = {},
+  m: Model<T>, label: string, options: Array<[T, string]>, o: { rebuild?: boolean; hint?: string; tip?: string; extra?: Child } = {},
 ): HTMLElement {
   const btns = options.map(([v, t]) =>
     h('button', {
@@ -213,25 +221,25 @@ export function chips<T extends string | number>(
     }, t),
   )
   const group = h('div', { class: 'chips', role: 'group', 'aria-label': label }, btns, o.extra)
-  return field(label, group, { hint: o.hint, model: m as Model<never> })
+  return field(label, group, { hint: o.hint, tip: o.tip, model: m as Model<never> })
 }
 
-export function checkField(m: Model<boolean>, label: string, o: { rebuild?: boolean; hint?: string } = {}): HTMLElement {
+export function checkField(m: Model<boolean>, label: string, o: { rebuild?: boolean; hint?: string; tip?: string } = {}): HTMLElement {
   const input = h('input', { type: 'checkbox', checked: m.get(), 'data-key': m.key })
   input.addEventListener('change', () => m.set(input.checked, !!o.rebuild))
   return h(
     'div',
     { class: 'field' },
-    h('div', { class: 'field-head' }, h('label', { class: 'switch' }, input, h('span', { class: 'track', 'aria-hidden': 'true' }), h('span', null, label)), originBadge(m as Model<never>)),
+    h('div', { class: 'field-head' }, h('label', { class: 'switch' }, input, h('span', { class: 'track', 'aria-hidden': 'true' }), h('span', null, label)), tipEl(o.tip), originBadge(m as Model<never>)),
     o.hint ? h('p', { class: 'hint' }, o.hint) : null,
   )
 }
 
-export function colorField(m: Model<string>, label: string): HTMLElement {
+export function colorField(m: Model<string>, label: string, o: { tip?: string } = {}): HTMLElement {
   const id = uid()
   const input = h('input', { type: 'color', id, value: m.get(), 'data-key': m.key })
   input.addEventListener('input', () => m.set(input.value, false))
-  return field(label, h('div', { class: 'numrow' }, input, h('code', { class: 'mono' }, m.get())), { id })
+  return field(label, h('div', { class: 'numrow' }, input, h('code', { class: 'mono' }, m.get())), { id, tip: o.tip })
 }
 
 export function group(title: string, ...kids: Child[]): HTMLElement {

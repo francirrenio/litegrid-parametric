@@ -2,6 +2,7 @@ import type {
   DrawerConfig, FaceFill, FaceId, FixingConfig, ProjectState, SkeletonConfig, SkinConfig,
 } from './types'
 import { PROJECT_VERSION } from './types'
+import { tr } from '../i18n'
 
 export function defaultFaceFill(overrides: Partial<FaceFill> = {}): FaceFill {
   return {
@@ -62,7 +63,7 @@ export function defaultProject(overrides: Partial<ProjectState> = {}): ProjectSt
   for (const f of ['left', 'right', 'top', 'bottom', 'back'] as FaceId[]) skins[f] = defaultSkin()
   return {
     version: PROJECT_VERSION,
-    name: 'Novo gabinete',
+    name: tr('Novo gabinete', 'New cabinet'),
     nozzle: 0.4,
     width: 200,
     height: 180,
@@ -95,7 +96,7 @@ export function defaultProject(overrides: Partial<ProjectState> = {}): ProjectSt
 export const PRESETS: Record<string, () => ProjectState> = {
   parafusos: () =>
     defaultProject({
-      name: 'Parafusos',
+      name: tr('Parafusos', 'Screws'),
       width: 200,
       height: 200,
       depth: 120,
@@ -114,7 +115,7 @@ export const PRESETS: Record<string, () => ProjectState> = {
     }),
   smd: () =>
     defaultProject({
-      name: 'Componentes SMD',
+      name: tr('Componentes SMD', 'SMD components'),
       width: 200,
       height: 120,
       depth: 90,
@@ -128,7 +129,7 @@ export const PRESETS: Record<string, () => ProjectState> = {
     }),
   ferramentas: () =>
     defaultProject({
-      name: 'Ferramentas',
+      name: tr('Ferramentas', 'Tools'),
       width: 200,
       height: 160,
       depth: 160,

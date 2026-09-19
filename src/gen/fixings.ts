@@ -9,6 +9,7 @@ import type { ProjectState } from '../model/types'
 import { faceAnchors } from './anchors'
 import { faceFrame, faceMatrix, type FaceFrame } from './faces'
 import { skeletonMetrics, type SkeletonMetrics } from './metrics'
+import { tr } from '../i18n'
 
 export const SKADIS_CLIP_PROFILE: Vec2[] = [
   [0.95, 0], [2.45, 0], [2.45, 3.7], [3.05, 4.3], [3.05, 5.9], [2.45, 6.5], [0.95, 6.5],
@@ -179,8 +180,8 @@ function pins(ctx: Ctx): Part | undefined {
   const ch = Math.min(0.6, pegR * 0.4)
   const mesh = lathe([[-PIN_HALF, pegR - ch], [-PIN_HALF + ch, pegR], [PIN_HALF - ch, pegR], [PIN_HALF, pegR - ch]])
   return fixPart({
-    id: 'FIX_PINO', label: 'Pino de alinhamento', assembled: mesh, placements,
-    note: `Pino de ${(2 * pegR).toFixed(1)} x ${2 * PIN_HALF} mm com pontas chanfradas, impresso em pé. 4 por emenda (lado direito e topo), nos furos de ancoragem dos dois gabinetes.`,
+    id: 'FIX_PINO', label: tr('Pino de alinhamento', 'Alignment pin'), assembled: mesh, placements,
+    note: tr(`Pino de ${(2 * pegR).toFixed(1)} x ${2 * PIN_HALF} mm com pontas chanfradas, impresso em pé. 4 por emenda (lado direito e topo), nos furos de ancoragem dos dois gabinetes.`, `${(2 * pegR).toFixed(1)} x ${2 * PIN_HALF} mm pin with chamfered ends, printed standing. 4 per joint (right side and top), in the anchor holes of both cabinets.`),
   })
 }
 
@@ -199,9 +200,9 @@ function butterfly(ctx: Ctx, placements: Mat4[]): Part {
     cylinder(c, 0, pegR, -PEG_LEN, 0),
   ]
   return fixPart({
-    id: 'FIX_BORBOLETA', label: 'Chave borboleta', assembled: merge(...solids), placements,
+    id: 'FIX_BORBOLETA', label: tr('Chave borboleta', 'Butterfly key'), assembled: merge(...solids), placements,
     orient: mat4RotX(Math.PI),
-    note: `Chave borboleta plana (${len.toFixed(1)} x ${lobe} x ${tb} mm) com dois pinos de ${(2 * pegR).toFixed(1)} mm (folga ${m.fit} mm) que entram nos furos das duas emendas. Imprime com os pinos para cima, sem suporte.`,
+    note: tr(`Chave borboleta plana (${len.toFixed(1)} x ${lobe} x ${tb} mm) com dois pinos de ${(2 * pegR).toFixed(1)} mm (folga ${m.fit} mm) que entram nos furos das duas emendas. Imprime com os pinos para cima, sem suporte.`, `Flat butterfly key (${len.toFixed(1)} x ${lobe} x ${tb} mm) with two ${(2 * pegR).toFixed(1)} mm pins (clearance ${m.fit} mm) that go into the holes of the two joints. Prints with the pins facing up, without support.`),
   })
 }
 
@@ -221,10 +222,10 @@ function screwConnector(ctx: Ctx, size: 'M3' | 'M4', placements: Mat4[]): Part {
   const mesh = extrudeWithHoleProfile(slotPoly(0, 0, len, wid, 8), [
     { z: 0, holes: circ }, { z: floor, holes: circ }, { z: floor, holes: hex }, { z: T, holes: hex },
   ])
-  const warn = hole > holeD ? ` O furo do esqueleto tem ${holeD} mm: alargar para ${hole.toFixed(1)} mm para ${size}.` : ''
+  const warn = hole > holeD ? tr(` O furo do esqueleto tem ${holeD} mm: alargar para ${hole.toFixed(1)} mm para ${size}.`, ` The skeleton hole is ${holeD} mm: widen it to ${hole.toFixed(1)} mm for ${size}.`) : ''
   return fixPart({
-    id: `FIX_CONECTOR_${size}`, label: `Conector com parafuso ${size}`, assembled: mesh, placements,
-    note: `Placa ${len.toFixed(0)} x ${wid.toFixed(0)} x ${T.toFixed(1)} mm com dois furos ${size} e alojamento hexagonal aberto no topo para a porca. Imprime deitada, alojamento para cima, sem suporte.${warn}`,
+    id: `FIX_CONECTOR_${size}`, label: `${tr('Conector com parafuso', 'Screw connector')} ${size}`, assembled: mesh, placements,
+    note: tr(`Placa ${len.toFixed(0)} x ${wid.toFixed(0)} x ${T.toFixed(1)} mm com dois furos ${size} e alojamento hexagonal aberto no topo para a porca. Imprime deitada, alojamento para cima, sem suporte.${warn}`, `${len.toFixed(0)} x ${wid.toFixed(0)} x ${T.toFixed(1)} mm plate with two ${size} holes and a hexagonal nut pocket open at the top. Prints lying flat, pocket facing up, without support.${warn}`),
   })
 }
 
@@ -240,8 +241,8 @@ function magnetConnector(ctx: Ctx, placements: Mat4[]): Part {
     extrude(outline, xs.map((x) => circle(x, 0, dia / 2)), floor - WELD, T),
   )
   return fixPart({
-    id: 'FIX_CONECTOR_IMA', label: 'Conector com ímã 6x2', assembled: mesh, placements,
-    note: `Placa ${len.toFixed(0)} x ${wid.toFixed(1)} x ${T.toFixed(1)} mm com dois bolsos de ${dia} mm para ímãs 6x2, abertos no topo. Imprime deitada sem suporte; colar na emenda com ímãs de polaridades opostas.`,
+    id: 'FIX_CONECTOR_IMA', label: tr('Conector com ímã 6x2', 'Magnet connector 6x2'), assembled: mesh, placements,
+    note: tr(`Placa ${len.toFixed(0)} x ${wid.toFixed(1)} x ${T.toFixed(1)} mm com dois bolsos de ${dia} mm para ímãs 6x2, abertos no topo. Imprime deitada sem suporte; colar na emenda com ímãs de polaridades opostas.`, `${len.toFixed(0)} x ${wid.toFixed(1)} x ${T.toFixed(1)} mm plate with two ${dia} mm pockets for 6x2 magnets, open at the top. Prints lying flat without support; glue it to the joint with magnets of opposite polarity.`),
   })
 }
 
@@ -284,7 +285,7 @@ function wallBracket(ctx: Ctx, fr: FaceFrame, pts: Vec2[], mode: 'screws' | 'key
     const xs = s / 2 > head + 4 ? [-s / 4, s / 4] : [0]
     const levels = xs.map((x) => countersinkLevels(x, yc, shank, head, T))
     mesh = extrudeWithHoleProfile(slotPoly(0, yc, xLen, wb, 8), levels[0]!.map((_, k) => ({ z: levels[0]![k]!.z, holes: levels.map((l) => l[k]!.holes[0]!) })))
-    note = `Placa de parede ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm com ${xs.length} furo(s) escareado(s) para parafuso de ${d} mm. Fixe na parede (a capacidade depende de parafuso e bucha) e encaixe o gabinete nos pinos. Imprime com o lado do gabinete para cima.`
+    note = tr(`Placa de parede ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm com ${xs.length} furo(s) escareado(s) para parafuso de ${d} mm. Fixe na parede (a capacidade depende de parafuso e bucha) e encaixe o gabinete nos pinos. Imprime com o lado do gabinete para cima.`, `Wall plate ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm with ${xs.length} countersunk hole(s) for a ${d} mm screw. Fix it to the wall (capacity depends on the screw and anchor) and fit the cabinet onto the pegs. Prints with the cabinet side facing up.`)
   } else {
     const hd = Math.max(2, 0.6 * d)
     const ramp = 3
@@ -303,12 +304,12 @@ function wallBracket(ctx: Ctx, fr: FaceFrame, pts: Vec2[], mode: 'screws' | 'key
     mesh = extrudeWithHoleProfile(rectPoly(-xLen / 2, bottom, xLen / 2, c), [
       { z: 0, holes: sPolys }, { z: T - hd - ramp, holes: sPolys }, { z: T - hd, holes: rPolys }, { z: T, holes: rPolys },
     ])
-    note = `Placa de chave (fechadura) ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm com ${xs.length} rasgo(s) para parafuso de ${d} mm; o rebaixo da cabeça fica na face da parede, com rampa de 50 graus para imprimir sem suporte. Parafuso da parede com a cabeça saliente ${hd.toFixed(1)} mm. Imprime com o lado do gabinete para cima.`
+    note = tr(`Placa de chave (fechadura) ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm com ${xs.length} rasgo(s) para parafuso de ${d} mm; o rebaixo da cabeça fica na face da parede, com rampa de 50 graus para imprimir sem suporte. Parafuso da parede com a cabeça saliente ${hd.toFixed(1)} mm. Imprime com o lado do gabinete para cima.`, `Keyhole plate ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm with ${xs.length} slot(s) for a ${d} mm screw; the head recess is on the wall face, with a 50 degree ramp to print without support. Wall screw with the head protruding ${hd.toFixed(1)} mm. Prints with the cabinet side facing up.`)
   }
   mesh = merge(mesh, ...pegs)
   return fixPart({
     id: mode === 'screws' ? 'FIX_PLACA_PAREDE' : 'FIX_PLACA_CHAVE',
-    label: mode === 'screws' ? 'Placa de parede (parafusos)' : 'Placa de parede (fechadura)',
+    label: mode === 'screws' ? tr('Placa de parede (parafusos)', 'Wall plate (screws)') : tr('Placa de parede (fechadura)', 'Wall plate (keyhole)'),
     assembled: mesh, placements, orient: mat4RotX(Math.PI), note,
   })
 }
@@ -345,14 +346,14 @@ function cleats(ctx: Ctx, fr: FaceFrame, pts: Vec2[]): Part[] {
   const yb = v0 + 2 * t - w
   return [
     fixPart({
-      id: 'FIX_CLEAT_PAREDE', label: 'Ripa francesa (parede)', assembled: wallMesh,
+      id: 'FIX_CLEAT_PAREDE', label: tr('Ripa francesa (parede)', 'French cleat (wall)'), assembled: wallMesh,
       placements: [mat4Mul(faceMatrix(fr, 0), mat4Mul(mat4Translate(u0 + L, yb, 2 * t), [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1]))],
-      note: `Tira de ${L.toFixed(0)} x ${w} x ${t} mm com chanfro de 45 graus, ${nWall} furos escareados para parafuso de ${d} mm. Imprime deitada (lado da parede na mesa), sem suporte. A capacidade depende de parafuso e bucha.`,
+      note: tr(`Tira de ${L.toFixed(0)} x ${w} x ${t} mm com chanfro de 45 graus, ${nWall} furos escareados para parafuso de ${d} mm. Imprime deitada (lado da parede na mesa), sem suporte. A capacidade depende de parafuso e bucha.`, `Strip ${L.toFixed(0)} x ${w} x ${t} mm with a 45 degree chamfer, ${nWall} countersunk holes for a ${d} mm screw. Prints lying flat (wall side on the bed), without support. Capacity depends on the screw and anchor.`),
     }),
     fixPart({
-      id: 'FIX_CLEAT_GABINETE', label: 'Ripa francesa (gabinete)', assembled: cabMesh,
+      id: 'FIX_CLEAT_GABINETE', label: tr('Ripa francesa (gabinete)', 'French cleat (cabinet)'), assembled: cabMesh,
       placements: [mat4Mul(faceMatrix(fr, 0), mat4Translate(u0, v0, 0))],
-      note: `Tira espelhada de ${L.toFixed(0)} x ${w} x ${t} mm com chanfro de 45 graus e ${cabHoles.length} furos escareados sobre os furos de ancoragem do fundo (parafuso M3 no esqueleto). Imprime deitada, sem suporte. Encaixa por cima da ripa da parede.`,
+      note: tr(`Tira espelhada de ${L.toFixed(0)} x ${w} x ${t} mm com chanfro de 45 graus e ${cabHoles.length} furos escareados sobre os furos de ancoragem do fundo (parafuso M3 no esqueleto). Imprime deitada, sem suporte. Encaixa por cima da ripa da parede.`, `Mirrored strip ${L.toFixed(0)} x ${w} x ${t} mm with a 45 degree chamfer and ${cabHoles.length} countersunk holes over the back anchor holes (M3 screw into the skeleton). Prints lying flat, without support. Hooks over the wall cleat.`),
     }),
   ]
 }
@@ -387,7 +388,7 @@ function skadisClips(ctx: Ctx, fr: FaceFrame, pts: Vec2[]): Part | undefined {
   }
   const placements = centres.map((u) => placeAt(fr, u, fr.height - c))
   return fixPart({
-    id: 'FIX_GANCHO_SKADIS', label: 'Ganchos para pendurar no Skadis', assembled: merge(plate, ...blades), placements,
-    note: `Barra com dois clipes (4 garras espelhadas de 1,5 mm com dente de 0,6 mm, ${SKADIS_CLIP_LENGTH} mm de comprimento) a ${SKADIS_CLIP_PITCH} mm, alinhados à grade do Skadis. Parafusos M3 escareados em rasgos sobre os furos de ancoragem do fundo (conferir o alinhamento). Imprime deitada, garras para cima; dentes a 45 graus, sem suporte.`,
+    id: 'FIX_GANCHO_SKADIS', label: tr('Ganchos para pendurar no Skadis', 'Hooks for hanging on Skadis'), assembled: merge(plate, ...blades), placements,
+    note: tr(`Barra com dois clipes (4 garras espelhadas de 1,5 mm com dente de 0,6 mm, ${SKADIS_CLIP_LENGTH} mm de comprimento) a ${SKADIS_CLIP_PITCH} mm, alinhados à grade do Skadis. Parafusos M3 escareados em rasgos sobre os furos de ancoragem do fundo (conferir o alinhamento). Imprime deitada, garras para cima; dentes a 45 graus, sem suporte.`, `Bar with two clips (4 mirrored 1.5 mm claws with a 0.6 mm tooth, ${SKADIS_CLIP_LENGTH} mm long) ${SKADIS_CLIP_PITCH} mm apart, aligned to the Skadis grid. Countersunk M3 screws in slots over the back anchor holes (check the alignment). Prints lying flat, claws facing up; teeth at 45 degrees, without support.`),
   })
 }

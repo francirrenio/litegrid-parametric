@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import type { Warning } from '../core/layout'
 import { planPlates, plateKey, type Plate, type PlateOverride } from '../export'
 import { generate } from '../gen'
@@ -92,7 +93,7 @@ function fallbackResult(p: ProjectState, e: unknown): GenerateResult {
   return {
     layout: { wallStructural: 0, bays: [], warnings: [] },
     parts: [],
-    warnings: [{ code: 'generator-error', where: 'projeto', message: `Não foi possível gerar: ${msg}` }],
+    warnings: [{ code: 'generator-error', where: 'projeto', message: tr(`Não foi possível gerar: ${msg}`, `Could not generate: ${msg}`) }],
     suggestions: [],
     manifest: {
       project: p.name,
@@ -137,7 +138,7 @@ export class Store {
     const init = repo.loadInitial()
     this.project = init.project
     this.projectId = init.id
-    this.result = fallbackResult(this.project, 'ainda não gerado')
+    this.result = fallbackResult(this.project, tr('ainda não gerado', 'not generated yet'))
     this.bounds = { lo: [0, 0, 0], hi: [this.project.width, this.project.height, this.project.depth] }
     this.theme = repo.getTheme() ?? 'dark'
     this.restoreUi()
@@ -637,7 +638,7 @@ export class Store {
 
   duplicateProject(): void {
     const copy = structuredClone(this.project)
-    copy.name = `${copy.name} (cópia)`
+    copy.name = `${copy.name} ${tr('(cópia)', '(copy)')}`
     this.newProject(copy)
   }
 

@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import type { Part, PartGroup } from '../model/part'
 import type { ProjectState } from '../model/types'
 
@@ -11,12 +12,12 @@ export const GROUP_DEFAULT: Record<PartGroup, string> = {
 }
 
 export const GROUP_NAME: Record<PartGroup, string> = {
-  gabinete: 'Gabinete',
-  gaveta: 'Gavetas',
-  skin: 'Skins',
-  espacador: 'Espaçadores',
-  fixacao: 'Fixações',
-  teste: 'Teste',
+  gabinete: tr('Gabinete', 'Cabinet'),
+  gaveta: tr('Gavetas', 'Drawers'),
+  skin: tr('Skins', 'Skins'),
+  espacador: tr('Espaçadores', 'Spacers'),
+  fixacao: tr('Fixações', 'Fasteners'),
+  teste: tr('Teste', 'Test'),
 }
 
 /**

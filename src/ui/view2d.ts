@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { esc, fmt, h } from './dom'
 import type { Store } from './state'
 
@@ -18,7 +19,7 @@ export function createView2D(st: Store): { el: HTMLElement; refresh: () => void 
     const p = st.project
     const bays = st.result.layout.bays
     if (bays.length === 0) {
-      el.innerHTML = '<div class="empty"><b>Sem gavetas para desenhar</b><p>Confira largura, altura, profundidade e as seções na barra lateral.</p></div>'
+      el.innerHTML = `<div class="empty"><b>${tr('Sem gavetas para desenhar', 'No drawers to draw')}</b><p>${tr('Confira largura, altura, profundidade e as seções na barra lateral.', 'Check the width, height, depth and sections in the sidebar.')}</p></div>`
       return
     }
     const W = p.width, H = p.height
@@ -28,7 +29,7 @@ export function createView2D(st: Store): { el: HTMLElement; refresh: () => void 
     const vb = `${-mL} ${-mT} ${W + mL + mR} ${H + mT + mB}`
     const out: string[] = []
     const sw = big * 0.0025
-    out.push(`<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Vista frontal do gabinete" style="--fs:${fs}px">`)
+    out.push(`<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${tr('Vista frontal do gabinete', 'Front view of the cabinet')}" style="--fs:${fs}px">`)
     out.push(`<rect class="cab" x="0" y="0" width="${W}" height="${H}" stroke-width="${sw * 1.6}"/>`)
 
     for (const b of bays) {
@@ -37,7 +38,7 @@ export function createView2D(st: Store): { el: HTMLElement; refresh: () => void 
       const secSel = st.sel.section === b.section - 1
       const ov = st.hasOverride(b.id)
       out.push(
-        `<g class="bay${sel ? ' sel' : ''}${secSel && !sel ? ' sec' : ''}${ov ? ' ovr' : ''}" data-bay="${esc(b.id)}" tabindex="0" role="button" aria-label="Gaveta ${esc(b.id)}, ${fmt(b.clearWidth)} por ${fmt(b.clearHeight)} milímetros">` +
+        `<g class="bay${sel ? ' sel' : ''}${secSel && !sel ? ' sec' : ''}${ov ? ' ovr' : ''}" data-bay="${esc(b.id)}" tabindex="0" role="button" aria-label="${esc(tr(`Gaveta ${b.id}, ${fmt(b.clearWidth)} por ${fmt(b.clearHeight)} milímetros`, `Drawer ${b.id}, ${fmt(b.clearWidth)} by ${fmt(b.clearHeight)} millimetres`))}">` +
           `<rect x="${b.x}" y="${y}" width="${b.clearWidth}" height="${b.clearHeight}" stroke-width="${sw}"/>`,
       )
       const cx = b.x + b.clearWidth / 2
@@ -64,7 +65,7 @@ export function createView2D(st: Store): { el: HTMLElement; refresh: () => void 
     for (const [n, s] of secs) {
       const sel = st.sel.section === n - 1
       out.push(
-        `<g class="sec-dim${sel ? ' sel' : ''}" data-sec="${n - 1}" tabindex="0" role="button" aria-label="Seção ${n}">` +
+        `<g class="sec-dim${sel ? ' sel' : ''}" data-sec="${n - 1}" tabindex="0" role="button" aria-label="${tr(`Seção ${n}`, `Section ${n}`)}">` +
           `<rect class="hit" x="${s.x0}" y="${ty - fs * 1.2}" width="${s.x1 - s.x0}" height="${fs * 2.4}"/>` +
           `<line x1="${s.x0}" y1="${ty}" x2="${s.x1}" y2="${ty}" stroke-width="${sw}"/>` +
           `<line x1="${s.x0}" y1="${ty - fs * 0.4}" x2="${s.x0}" y2="${ty + fs * 0.4}" stroke-width="${sw}"/>` +
@@ -78,15 +79,15 @@ export function createView2D(st: Store): { el: HTMLElement; refresh: () => void 
     out.push(
       `<g class="dim"><line x1="0" y1="${by}" x2="${W}" y2="${by}" stroke-width="${sw}"/>` +
         `<line x1="0" y1="${by - fs * 0.4}" x2="0" y2="${by + fs * 0.4}" stroke-width="${sw}"/><line x1="${W}" y1="${by - fs * 0.4}" x2="${W}" y2="${by + fs * 0.4}" stroke-width="${sw}"/>` +
-        `<text x="${W / 2}" y="${by + fs * 1.4}" text-anchor="middle">largura ${fmt(W)} mm</text></g>`,
+        `<text x="${W / 2}" y="${by + fs * 1.4}" text-anchor="middle">${tr('largura', 'width')} ${fmt(W)} mm</text></g>`,
     )
     const lx = -fs * 2
     out.push(
       `<g class="dim"><line x1="${lx}" y1="0" x2="${lx}" y2="${H}" stroke-width="${sw}"/>` +
         `<line x1="${lx - fs * 0.4}" y1="0" x2="${lx + fs * 0.4}" y2="0" stroke-width="${sw}"/><line x1="${lx - fs * 0.4}" y1="${H}" x2="${lx + fs * 0.4}" y2="${H}" stroke-width="${sw}"/>` +
-        `<text transform="translate(${lx - fs * 0.6} ${H / 2}) rotate(-90)" text-anchor="middle">altura ${fmt(H)} mm</text></g>`,
+        `<text transform="translate(${lx - fs * 0.6} ${H / 2}) rotate(-90)" text-anchor="middle">${tr('altura', 'height')} ${fmt(H)} mm</text></g>`,
     )
-    out.push(`<text class="cap" x="${W}" y="${H + fs * 5}" text-anchor="end">vista frontal · profundidade ${fmt(p.depth)} mm</text>`)
+    out.push(`<text class="cap" x="${W}" y="${H + fs * 5}" text-anchor="end">${tr('vista frontal · profundidade', 'front view · depth')} ${fmt(p.depth)} mm</text>`)
     out.push('</svg>')
     el.innerHTML = out.join('')
   }

@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { defaultDrawer, defaultProject } from '../model/defaults'
 import { PROJECT_VERSION, type ProjectState } from '../model/types'
 
@@ -169,11 +170,11 @@ export function importProjectText(text: string): ProjectState {
   try {
     data = JSON.parse(text)
   } catch {
-    throw new Error('O arquivo não é um JSON válido.')
+    throw new Error(tr('O arquivo não é um JSON válido.', 'The file is not valid JSON.'))
   }
   const candidate = isObj(data) && isObj(data.project) ? data.project : data
   if (!isObj(candidate) || !RECOGNISED.some((k) => k in candidate)) {
-    throw new Error('O arquivo não parece um projeto do LiteGrid.')
+    throw new Error(tr('O arquivo não parece um projeto do LiteGrid.', 'The file does not look like a LiteGrid project.'))
   }
   return migrateProject(candidate)
 }

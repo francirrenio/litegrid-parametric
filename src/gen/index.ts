@@ -9,6 +9,7 @@ import { generateFixingParts } from './fixings'
 import { generateSkinParts } from './skins'
 import { generateTestParts } from './testpiece'
 import { buildSuggestions } from './suggestions'
+import { tr } from '../i18n'
 
 type PartGenerator = (p: ProjectState, layout: Layout, nz: Nozzle) => Part[]
 
@@ -42,7 +43,7 @@ export function generate(p: ProjectState): GenerateResult {
       try {
         parts.push(...gen(p, layout, nz))
       } catch (e) {
-        warnings.push({ code: 'generator-error', where: name, message: `Falha ao gerar ${name}: ${(e as Error).message}` })
+        warnings.push({ code: 'generator-error', where: name, message: tr(`Falha ao gerar ${name}: ${(e as Error).message}`, `Failed to generate ${name}: ${(e as Error).message}`) })
       }
     }
   }
@@ -53,7 +54,7 @@ export function generate(p: ProjectState): GenerateResult {
       warnings.push({
         code: 'design',
         where: part.id,
-        message: `${part.label}: ${w.toFixed(0)} x ${d.toFixed(0)} mm não cabe na mesa de ${p.printBed.x} x ${p.printBed.y} mm.`,
+        message: tr(`${part.label}: ${w.toFixed(0)} x ${d.toFixed(0)} mm não cabe na mesa de ${p.printBed.x} x ${p.printBed.y} mm.`, `${part.label}: ${w.toFixed(0)} x ${d.toFixed(0)} mm does not fit the ${p.printBed.x} x ${p.printBed.y} mm bed.`),
       })
     }
   }
@@ -61,7 +62,7 @@ export function generate(p: ProjectState): GenerateResult {
   try {
     suggestions = buildSuggestions(p, layout, nz)
   } catch (e) {
-    warnings.push({ code: 'generator-error', where: 'sugestões', message: `Falha nas sugestões: ${(e as Error).message}` })
+    warnings.push({ code: 'generator-error', where: 'sugestões', message: tr(`Falha nas sugestões: ${(e as Error).message}`, `Failed to build suggestions: ${(e as Error).message}`) })
   }
   return { layout, parts, warnings, suggestions, manifest: buildManifest(p.name, layoutInput(p)) }
 }

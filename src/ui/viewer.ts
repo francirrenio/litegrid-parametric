@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { Bay } from '../core/layout'
@@ -296,8 +297,8 @@ export class Viewer {
       group.add(lines)
       const el = document.createElement('div')
       el.className = `dim-label clear-${level}`
-      el.title = 'Folga lateral (por lado) | topo | fundo, em mm'
-      el.textContent = `${fmt(c.lateral, 2)} | ${fmt(c.top, 2)} | ${fmt(c.back, 1)}${c.collision ? ' · colide' : ''}`
+      el.title = tr('Folga lateral (por lado) | topo | fundo, em mm', 'Side clearance (per side) | top | back, in mm')
+      el.textContent = `${fmt(c.lateral, 2)} | ${fmt(c.top, 2)} | ${fmt(c.back, 1)}${c.collision ? tr(' · colide', ' · collides') : ''}`
       this.clearHost.appendChild(el)
       this.clearLabels.push({ el, pos: new THREE.Vector3(b.x + b.clearWidth / 2, b.y + b.clearHeight / 2, D) })
     }
@@ -525,7 +526,7 @@ export class Viewer {
   /* view cube */
 
   private cubeMaterials(): THREE.MeshBasicMaterial[] {
-    const labels = ['Dir.', 'Esq.', 'Topo', 'Base', 'Frente', 'Trás']
+    const labels = [tr('Dir.', 'Right'), tr('Esq.', 'Left'), tr('Topo', 'Top'), tr('Base', 'Bottom'), tr('Frente', 'Front'), tr('Trás', 'Back')]
     return labels.map((text) => {
       const c = document.createElement('canvas')
       c.width = c.height = 128

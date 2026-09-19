@@ -1,4 +1,5 @@
 import { BED_PRESETS, CUSTOM_BED, bedPresetId } from '../model/beds'
+import { tr } from '../i18n'
 import { h } from './dom'
 import type { Store } from './state'
 
@@ -9,7 +10,7 @@ export function bedPicker(st: Store, compact: boolean): HTMLElement {
   const select = h(
     'select',
     {
-      'aria-label': 'Mesa da impressora', 'data-key': 'printBed.preset',
+      'aria-label': tr('Mesa da impressora', 'Printer bed'), 'data-key': 'printBed.preset',
       onChange: (e: Event) => {
         const v = (e.target as HTMLSelectElement).value
         const preset = BED_PRESETS.find((b) => b.id === v)
@@ -18,13 +19,13 @@ export function bedPicker(st: Store, compact: boolean): HTMLElement {
       },
     },
     ...BED_PRESETS.map((b) => h('option', { value: b.id, selected: b.id === id }, b.name)),
-    h('option', { value: CUSTOM_BED, selected: id === CUSTOM_BED }, 'Personalizado…'),
+    h('option', { value: CUSTOM_BED, selected: id === CUSTOM_BED }, tr('Personalizado…', 'Custom…')),
   )
   select.value = id
   const wrap = h('div', { class: `bed-picker${compact ? ' compact' : ''}` }, select)
   if (id === CUSTOM_BED) {
     const num = (label: string, key: 'x' | 'y') => {
-      const input = h('input', { type: 'number', min: 50, max: 1000, step: 1, value: bed[key], 'aria-label': `Mesa ${label}`, 'data-key': `printBed.${key}` })
+      const input = h('input', { type: 'number', min: 50, max: 1000, step: 1, value: bed[key], 'aria-label': `${tr('Mesa', 'Bed')} ${label}`, 'data-key': `printBed.${key}` })
       input.addEventListener('change', () => {
         const v = Math.min(1000, Math.max(50, Math.round(input.valueAsNumber || bed[key])))
         input.value = String(v)

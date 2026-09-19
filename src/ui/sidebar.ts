@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { clear, h, icon } from './dom'
 import { openKeys } from './fields'
 import { tabOfWarning, type SideTab, type Store } from './state'
@@ -11,13 +12,13 @@ import { pecasHasWarning, pecasTab } from './tabs/pecas'
 import { projetoTab } from './tabs/projeto'
 
 const TABS: Array<[SideTab, string, string]> = [
-  ['projeto', 'Projeto', 'projeto'],
+  ['projeto', tr('Projeto', 'Project'), 'projeto'],
   ['layout', 'Layout', 'layout'],
-  ['gabinete', 'Gabinete', 'gabinete'],
-  ['gavetas', 'Gavetas', 'gavetas'],
-  ['fixacao', 'Fixação', 'fixacao'],
-  ['avancado', 'Avançado', 'avancado'],
-  ['pecas', 'Peças', 'pecas'],
+  ['gabinete', tr('Gabinete', 'Cabinet'), 'gabinete'],
+  ['gavetas', tr('Gavetas', 'Drawers'), 'gavetas'],
+  ['fixacao', tr('Fixação', 'Fastening'), 'fixacao'],
+  ['avancado', tr('Avançado', 'Advanced'), 'avancado'],
+  ['pecas', tr('Peças', 'Parts'), 'pecas'],
 ]
 
 const BUILDERS: Record<SideTab, (st: Store) => TabView> = {
@@ -26,10 +27,10 @@ const BUILDERS: Record<SideTab, (st: Store) => TabView> = {
 }
 
 export function createSidebar(st: Store): HTMLElement {
-  const bar = h('div', { class: 'tabbar', role: 'tablist', 'aria-label': 'Seções do projeto' })
+  const bar = h('div', { class: 'tabbar', role: 'tablist', 'aria-label': tr('Seções do projeto', 'Project sections') })
   const panel = h('div', { class: 'tab-panel', id: 'tabpanel', role: 'tabpanel', tabindex: '-1' })
-  const handle = h('button', { type: 'button', class: 'sheet-handle', 'aria-label': 'Expandir ou recolher painel', 'aria-expanded': 'true' }, h('span', { class: 'grip' }))
-  const side = h('aside', { class: 'side', 'aria-label': 'Parâmetros' }, handle, bar, panel)
+  const handle = h('button', { type: 'button', class: 'sheet-handle', 'aria-label': tr('Expandir ou recolher painel', 'Expand or collapse panel'), 'aria-expanded': 'true' }, h('span', { class: 'grip' }))
+  const side = h('aside', { class: 'side', 'aria-label': tr('Parâmetros', 'Parameters') }, handle, bar, panel)
   handle.addEventListener('click', () => {
     const c = side.classList.toggle('collapsed')
     handle.setAttribute('aria-expanded', String(!c))
@@ -61,7 +62,7 @@ export function createSidebar(st: Store): HTMLElement {
       },
       icon(ic, 17),
       h('span', { class: 'tab-label' }, label),
-      h('span', { class: 'warn-dot', hidden: true, title: 'Há avisos nesta aba' }),
+      h('span', { class: 'warn-dot', hidden: true, title: tr('Há avisos nesta aba', 'This tab has warnings') }),
     )
     tabBtns.set(id, b)
     bar.append(b)
@@ -96,7 +97,7 @@ export function createSidebar(st: Store): HTMLElement {
     } catch (e) {
       console.error(e)
       current = null
-      panel.append(h('p', { class: 'note error' }, 'Não foi possível montar esta aba.'))
+      panel.append(h('p', { class: 'note error' }, tr('Não foi possível montar esta aba.', 'Could not build this tab.')))
     }
     panel.scrollTop = top
     if (inside && focusKey) {

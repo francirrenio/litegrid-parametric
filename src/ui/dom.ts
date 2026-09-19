@@ -1,3 +1,5 @@
+import { num, tr } from '../i18n'
+
 export type Child = Node | string | number | null | undefined | false | Child[]
 export type Props = Record<string, unknown>
 
@@ -191,10 +193,10 @@ export function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number)
 
 export const fmt = (n: number, d = 1): string => {
   const s = n.toFixed(d)
-  return (d > 0 ? s.replace(/\.?0+$/, '') : s).replace('.', ',')
+  return num(d > 0 ? s.replace(/\.?0+$/, '') : s)
 }
 
-export function confirmDialog(message: string, okLabel = 'Confirmar'): Promise<boolean> {
+export function confirmDialog(message: string, okLabel = tr('Confirmar', 'Confirm')): Promise<boolean> {
   return new Promise((resolve) => {
     const prev = document.activeElement as HTMLElement | null
     const done = (v: boolean) => {
@@ -203,7 +205,7 @@ export function confirmDialog(message: string, okLabel = 'Confirmar'): Promise<b
       resolve(v)
     }
     const ok = h('button', { type: 'button', class: 'btn danger', onClick: () => done(true) }, okLabel)
-    const cancel = h('button', { type: 'button', class: 'btn ghost', onClick: () => done(false) }, 'Cancelar')
+    const cancel = h('button', { type: 'button', class: 'btn ghost', onClick: () => done(false) }, tr('Cancelar', 'Cancel'))
     const root = h(
       'div',
       { class: 'modal-back', onClick: (e: Event) => e.target === root && done(false), onKeydown: (e: KeyboardEvent) => e.key === 'Escape' && done(false) },

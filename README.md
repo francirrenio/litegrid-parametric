@@ -42,3 +42,11 @@ O build é estático (`dist/`, caminhos relativos), então funciona em qualquer 
 | `docs` | especificação e referências |
 
 O projeto é salvo automaticamente no navegador (`localStorage`) e pode ser salvo e aberto como arquivo JSON.
+
+---
+
+## English
+
+LiteGrid Parametric is a browser-only (TypeScript, no server) parametric generator of modular drawer organizers for FDM printing. Enter the nozzle and the cabinet width, height and depth, split it into sections with rows of drawers, and it builds the flat-pack frame (or a monolithic cabinet), drawers, optional skins and spacers, and fasteners. Export per-part STL, bed STL/3MF, a full ZIP, `layout_manifest.json`, a slicer profile and an assembly guide.
+
+The interface is bilingual (Português / English): use the language selector in the header; the choice is remembered and the page reloads. Development commands are the same as above (`npm run dev`, `npm test`, `npm run typecheck`, `npm run build`).

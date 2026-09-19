@@ -5,6 +5,7 @@ import { makePart, type Part } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { shapeMesh } from './plate2d'
 import { buildSkeleton, type SkeletonPlate } from './skeleton'
+import { tr } from '../i18n'
 
 const GROUP_COLOR = '#7f93aa'
 
@@ -42,7 +43,7 @@ function skeletonParts(p: ProjectState, layout: Layout, nz: Nozzle): Part[] {
         placements: list.map((pl) => pl.matrix),
         color: GROUP_COLOR,
         assemblyStep: first.step,
-        note: 'Imprima deitada na mesa; as abas entram nas ranhuras das peças vizinhas.',
+        note: tr('Imprima deitada na mesa; as abas entram nas ranhuras das peças vizinhas.', 'Print lying flat on the bed; the tabs fit into the slots of the neighbouring parts.'),
       }),
     )
   }
@@ -56,13 +57,13 @@ function monolithicParts(p: ProjectState, layout: Layout, nz: Nozzle): Part[] {
   return [
     makePart({
       id: 'gabinete-monolitico',
-      label: `Gabinete ${fmt(p.width)}x${fmt(p.height)}x${fmt(p.depth)}`,
+      label: tr('Gabinete', 'Cabinet') + ` ${fmt(p.width)}x${fmt(p.height)}x${fmt(p.depth)}`,
       group: 'gabinete',
       assembled: merge(...meshes),
       orient: IDENTITY,
       color: GROUP_COLOR,
       assemblyStep: 1,
-      note: 'Peça única, impressa em pé apoiada nas costas. Confira o volume útil da sua mesa.',
+      note: tr('Peça única, impressa em pé apoiada nas costas. Confira o volume útil da sua mesa.', 'Single piece, printed standing on its back. Check the build volume of your printer.'),
     }),
   ]
 }
