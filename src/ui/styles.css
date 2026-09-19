@@ -329,3 +329,11 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .vp-row { flex-wrap: nowrap; }
 .vp-row .bbox { margin-left: auto; white-space: nowrap; }
 @media (max-width: 720px) { .vp-row { flex-wrap: wrap; } }
+
+/* seletor da mesa da impressora */
+.bed-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bed-picker select { flex: 1 1 200px; }
+.bed-dim { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-2); }
+.bed-dim input { width: 72px; padding: 6px 8px; background: var(--sunken); border: 1px solid var(--border-3); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 12px; }
+.bed-picker.compact { margin-left: auto; }
+.bed-picker.compact select { flex: 0 1 auto; width: auto; max-width: 260px; padding: 5px 8px; font-size: 12px; }

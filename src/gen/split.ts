@@ -2,7 +2,7 @@ import type { Vec2 } from '../geom/mesh'
 import { diff, intersect, polygonShape, rect, union, type Shape } from './plate2d'
 
 const MARGIN = 4
-const KNOB_SCALES = [1, 0.8, 0.6]
+const KNOB_SCALES = [1, 0.85, 0.7]
 
 interface Knob {
   root: number
@@ -12,13 +12,16 @@ interface Knob {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-/** Width of the solid post or beam at a seam: proportional to the bar width, between 20 and 30 mm. */
-export const seamPostWidth = (bw: number): number => clamp(2.6 * bw, 20, 30)
+/** Width of the solid post or beam at a seam: proportional to the bar width, between 26 and 30 mm. */
+export const seamPostWidth = (bw: number): number => clamp(3.2 * bw, 26, 30)
 
-/** Dovetail knob sized from the post: head about a quarter of its width (4 to 7.5 mm), so joints stay modest. */
+/**
+ * Dovetail knob sized from the post: head half-width about a quarter of the post (4.5 to 8 mm). The neck is 82 % of
+ * the head and the knob is as long as the head is wide, a 10° dovetail, so the neck stays thick enough to carry load.
+ */
 export function knobFor(postW: number, scale = 1): Knob {
-  const head = clamp(0.24 * postW, 4, 7.5) * scale
-  return { root: head * 0.64, head, len: head * 1.25 }
+  const head = clamp(0.24 * postW, 4.5, 8) * scale
+  return { root: head * 0.82, head, len: head }
 }
 
 export interface Box {
@@ -114,8 +117,10 @@ function solid(box: Box, shape: Shape): boolean {
  */
 export function seamKnobs(shape: Shape, c: number, y0: number, y1: number, k: Knob): number[] {
   const valid: number[] = []
-  for (let y = y0 + k.head + 1; y <= y1 - k.head - 1; y += 2) {
-    if (solid({ x0: c - 2, y0: y - k.head - 1, x1: c + k.len + 2, y1: y + k.head + 1 }, shape)) valid.push(y)
+  // Solid material is required well beyond the knob (3 mm around it, 6 mm past its tip) so the notch on the other
+  // piece is never left with a thin wall.
+  for (let y = y0 + k.head + 3; y <= y1 - k.head - 3; y += 2) {
+    if (solid({ x0: c - 3, y0: y - k.head - 3, x1: c + k.len + 6, y1: y + k.head + 3 }, shape)) valid.push(y)
   }
   if (valid.length === 0) return []
   const length = y1 - y0

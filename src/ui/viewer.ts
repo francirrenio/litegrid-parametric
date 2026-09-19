@@ -9,6 +9,7 @@ import { fmt } from './dom'
 export interface ViewOptions {
   wire: boolean
   cotas: boolean
+  grid: boolean
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -59,8 +60,16 @@ export class Viewer {
   private raf = 0
   private framed = false
   private opts: ViewOptions = {
-    wire: false, cotas: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0, selectedBay: null,
+    wire: false, cotas: false, grid: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0, selectedBay: null,
   }
+  private grid: THREE.GridHelper | null = null
+  private cubeScene = new THREE.Scene()
+  private cubeCam = new THREE.PerspectiveCamera(32, 1, 0.1, 20)
+  private cube: THREE.Mesh
+  private cubeHl: THREE.Mesh
+  private cubeRay = new THREE.Raycaster()
+  private cubeHover: THREE.Vector3 | null = null
+  private anim = 0
   private bays: Bay[] = []
   private ray = new THREE.Raycaster()
   private down: { x: number; y: number } | null = null
@@ -91,15 +100,40 @@ export class Viewer {
     this.controls.enableDamping = false
     this.controls.addEventListener('change', () => this.requestRender())
 
+    this.cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.cubeMaterials())
+    this.cubeHl = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0.5, depthTest: false }),
+    )
+    this.cubeHl.visible = false
+    this.cubeHl.renderOrder = 2
+    this.cubeScene.add(this.cube, this.cubeHl)
+
     const dom = this.renderer.domElement
     dom.addEventListener('contextmenu', (e) => e.preventDefault())
     dom.addEventListener('pointerdown', (e) => {
       this.down = { x: e.clientX, y: e.clientY }
     })
+    dom.addEventListener('pointermove', (e) => {
+      const dir = this.cubeDirAt(e)
+      const changed = (dir === null) !== (this.cubeHover === null) || (dir && this.cubeHover && !dir.equals(this.cubeHover))
+      this.cubeHover = dir
+      dom.style.cursor = dir ? 'pointer' : ''
+      if (changed) this.requestRender()
+    })
+    dom.addEventListener('pointerleave', () => {
+      if (this.cubeHover) {
+        this.cubeHover = null
+        this.requestRender()
+      }
+    })
     dom.addEventListener('pointerup', (e) => {
       const d = this.down
       this.down = null
-      if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.pick(e)
+      if (!d || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return
+      const dir = this.cubeDirAt(e)
+      if (dir) this.snapTo(dir)
+      else this.pick(e)
     })
     dom.addEventListener('dblclick', (e) => this.recentre(e))
     new ResizeObserver(() => this.resize()).observe(host)
@@ -110,6 +144,12 @@ export class Viewer {
   setTheme(dark: boolean): void {
     this.dark = dark
     for (const m of this.edgeMats) m.color.set(dark ? 0x0b0e12 : 0x2b3a4d)
+    this.paintGrid()
+    for (const m of this.cube.material as THREE.MeshBasicMaterial[]) {
+      m.map?.dispose()
+      m.dispose()
+    }
+    this.cube.material = this.cubeMaterials()
     this.requestRender()
   }
 
@@ -187,6 +227,7 @@ export class Viewer {
         this.overlay.add(l)
       }
     }
+    this.buildGrid()
     this.buildSelection()
     this.buildDims()
     this.applyOptions()
@@ -263,6 +304,7 @@ export class Viewer {
     }
     for (const m of this.edgeMats) m.visible = !o.wire
     if (this.dimLines) this.dimLines.visible = o.cotas
+    if (this.grid) this.grid.visible = o.grid
     this.labelHost.style.display = o.cotas ? '' : 'none'
 
     const axis = o.corteEixo
@@ -292,8 +334,153 @@ export class Viewer {
 
   frame(): void {
     this.framed = true
+    cancelAnimationFrame(this.anim)
     this.setCameraDefault()
     this.requestRender()
+  }
+
+  /* ground grid: a plane under the cabinet to judge size and position */
+
+  private buildGrid(): void {
+    const size = this.box.getSize(new THREE.Vector3())
+    const c = this.box.getCenter(new THREE.Vector3())
+    const span = Math.max(size.x, size.z, 60) * 2.6
+    const steps = [5, 10, 20, 25, 50, 100, 200, 500]
+    const step = steps.find((s) => span / s <= 36) ?? 500
+    const cells = Math.max(4, Math.ceil(span / step / 2) * 2)
+    const g = new THREE.GridHelper(cells * step, cells, 0x3d5068, 0x2a3644)
+    g.position.set(c.x, this.box.min.y - 0.05, c.z)
+    g.renderOrder = -1
+    this.grid = g
+    this.overlay.add(g)
+    this.paintGrid()
+  }
+
+  private paintGrid(): void {
+    if (!this.grid) return
+    const mats = Array.isArray(this.grid.material) ? this.grid.material : [this.grid.material]
+    for (const m of mats) {
+      const lm = m as THREE.LineBasicMaterial
+      lm.transparent = true
+      lm.opacity = this.dark ? 0.75 : 0.9
+      lm.depthWrite = false
+    }
+    const colors = this.grid.geometry.getAttribute('color') as THREE.BufferAttribute
+    const centre = new THREE.Color(this.dark ? 0x4b6580 : 0x8fa3ba)
+    const line = new THREE.Color(this.dark ? 0x263242 : 0xc6d1de)
+    // GridHelper stores 4 vertices per grid index (two lines); the middle index is the axis cross.
+    const half = (colors.count / 4 - 1) / 2
+    for (let i = 0; i < colors.count; i++) {
+      const col = Math.floor(i / 4) === half ? centre : line
+      colors.setXYZ(i, col.r, col.g, col.b)
+    }
+    colors.needsUpdate = true
+  }
+
+  /* view cube */
+
+  private cubeMaterials(): THREE.MeshBasicMaterial[] {
+    const labels = ['Dir.', 'Esq.', 'Topo', 'Base', 'Frente', 'Trás']
+    return labels.map((text) => {
+      const c = document.createElement('canvas')
+      c.width = c.height = 128
+      const g = c.getContext('2d')!
+      g.fillStyle = this.dark ? '#1c2532' : '#eef2f6'
+      g.fillRect(0, 0, 128, 128)
+      g.strokeStyle = this.dark ? '#46566b' : '#aebccd'
+      g.lineWidth = 6
+      g.strokeRect(3, 3, 122, 122)
+      g.fillStyle = this.dark ? '#d4dee8' : '#2b3a4d'
+      g.font = '600 26px Rubik, system-ui, sans-serif'
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
+      g.fillText(text, 64, 66)
+      const tex = new THREE.CanvasTexture(c)
+      tex.colorSpace = THREE.SRGBColorSpace
+      return new THREE.MeshBasicMaterial({ map: tex })
+    })
+  }
+
+  private static readonly CUBE_PX = 104
+  private static readonly CUBE_PAD = 10
+  private static readonly CUBE_EDGE = 0.34
+
+  /** The view direction under the pointer when it is over the cube: face, edge or corner. */
+  private cubeDirAt(e: MouseEvent): THREE.Vector3 | null {
+    const r = this.renderer.domElement.getBoundingClientRect()
+    const x = e.clientX - r.left - Viewer.CUBE_PAD
+    const y = e.clientY - r.top - Viewer.CUBE_PAD
+    const s = Viewer.CUBE_PX
+    if (x < 0 || y < 0 || x > s || y > s) return null
+    this.syncCubeCam()
+    this.cubeRay.setFromCamera(new THREE.Vector2((x / s) * 2 - 1, -(y / s) * 2 + 1), this.cubeCam)
+    this.cubeScene.updateMatrixWorld(true)
+    const hit = this.cubeRay.intersectObject(this.cube, false)[0]
+    if (!hit) return null
+    const p = hit.point
+    const d = new THREE.Vector3()
+    for (const k of ['x', 'y', 'z'] as const) if (Math.abs(p[k]) >= Viewer.CUBE_EDGE) d[k] = Math.sign(p[k])
+    return d
+  }
+
+  private syncCubeCam(): void {
+    this.cubeCam.position.copy(this.camera.position).sub(this.controls.target).normalize().multiplyScalar(3.2)
+    this.cubeCam.up.copy(this.camera.up)
+    this.cubeCam.lookAt(0, 0, 0)
+    this.cubeCam.updateMatrixWorld(true)
+  }
+
+  private renderCube(): void {
+    const w = this.el.clientWidth, h = this.el.clientHeight
+    const s = Viewer.CUBE_PX, pad = Viewer.CUBE_PAD
+    if (w < s + pad || h < s + pad) return
+    this.syncCubeCam()
+    const hl = this.cubeHover
+    this.cubeHl.visible = !!hl
+    if (hl) {
+      const e = Viewer.CUBE_EDGE
+      const dims = [hl.x, hl.y, hl.z].map((c) => (c !== 0 ? 0.5 - e : 2 * e) + 0.02)
+      this.cubeHl.scale.set(dims[0]!, dims[1]!, dims[2]!)
+      const mid = (0.5 + e) / 2
+      this.cubeHl.position.set(hl.x * mid, hl.y * mid, hl.z * mid)
+    }
+    const r = this.renderer
+    r.autoClear = false
+    r.setScissorTest(true)
+    r.setViewport(pad, h - s - pad, s, s)
+    r.setScissor(pad, h - s - pad, s, s)
+    r.clearDepth()
+    r.render(this.cubeScene, this.cubeCam)
+    r.setScissorTest(false)
+    r.setViewport(0, 0, w, h)
+    r.autoClear = true
+  }
+
+  /** Turns the camera to look at the cabinet from `dir` (a face, edge or corner of the cube), animated. */
+  private snapTo(dir: THREE.Vector3): void {
+    const target = this.box.getCenter(new THREE.Vector3())
+    const from = this.camera.position.clone().sub(this.controls.target)
+    const dist = from.length()
+    const to = dir.clone().normalize()
+    if (Math.abs(to.y) > 0.999) to.z += 1e-3
+    to.normalize()
+    const a = from.clone().normalize()
+    const angle = a.angleTo(to)
+    const startTarget = this.controls.target.clone()
+    const t0 = performance.now()
+    const dur = 320
+    cancelAnimationFrame(this.anim)
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / dur)
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2
+      const dirNow = angle < 1e-4 ? to.clone() : a.clone().multiplyScalar(Math.sin((1 - e) * angle)).add(to.clone().multiplyScalar(Math.sin(e * angle))).divideScalar(Math.sin(angle))
+      this.controls.target.copy(startTarget).lerp(target, e)
+      this.camera.position.copy(this.controls.target).addScaledVector(dirNow.normalize(), dist)
+      this.controls.update()
+      this.requestRender()
+      if (k < 1) this.anim = requestAnimationFrame(step)
+    }
+    step()
   }
 
   private setCameraDefault(): void {
@@ -357,6 +544,7 @@ export class Viewer {
   private render(): void {
     if (this.el.clientWidth < 2) return
     this.renderer.render(this.scene, this.camera)
+    this.renderCube()
     if (this.opts.cotas) {
       const w = this.el.clientWidth, h = this.el.clientHeight
       const v = new THREE.Vector3()

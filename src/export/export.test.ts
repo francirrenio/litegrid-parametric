@@ -49,6 +49,19 @@ describe('plates', () => {
     }
   })
 
+  it('centres the group of parts on every bed', () => {
+    const one = planPlates([mk('a', 80, 50)], { x: 220, y: 220 })
+    expect(one[0]!.items[0]!.x).toBeCloseTo(0, 6)
+    expect(one[0]!.items[0]!.y).toBeCloseTo(0, 6)
+    const many = planPlates([mk('b', 100, 60, 3), mk('c', 40, 40, 2)], { x: 220, y: 220 })
+    for (const pl of many) {
+      const xs = pl.items.flatMap((i) => [i.x - i.width / 2, i.x + i.width / 2])
+      const ys = pl.items.flatMap((i) => [i.y - i.depth / 2, i.y + i.depth / 2])
+      expect(Math.min(...xs) + Math.max(...xs)).toBeCloseTo(0, 6)
+      expect(Math.min(...ys) + Math.max(...ys)).toBeCloseTo(0, 6)
+    }
+  })
+
   it('rotates a long part to fit and flags the oversize ones', () => {
     const plates = planPlates([mk('long', 230, 100), mk('huge', 400, 400)], { x: 220, y: 240 })
     const long = plates.flatMap((p) => p.items).find((i) => i.partId === 'long')!

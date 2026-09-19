@@ -1,7 +1,8 @@
 import { deriveNozzle } from '../../core/nozzle'
 import type { Material, MaterialLevel } from '../../model/types'
 import { h, fmt } from '../dom'
-import { chips, group, numField, pathModel, selectField } from '../fields'
+import { bedPicker } from '../bed'
+import { chips, field, group, numField, pathModel, selectField } from '../fields'
 import type { Store } from '../state'
 import type { TabView } from './common'
 
@@ -32,6 +33,7 @@ export function projetoTab(st: Store): TabView {
       numField(pm<number>('nozzle'), 'Diâmetro livre', { min: 0.1, max: 2, step: 0.05, unit: 'mm', rebuild: true }),
       derived,
     ),
+    group('Impressora', field('Mesa de impressão', bedPicker(st, false), { hint: 'Define o tamanho máximo de cada peça e como as peças se distribuem nas mesas.' })),
     group(
       'Dimensões externas do gabinete',
       numField(pm<number>('width'), 'Largura', { min: 30, max: 2000, unit: 'mm', slider: true, sliderMin: 60, sliderMax: 800 }),

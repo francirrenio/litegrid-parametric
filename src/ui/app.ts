@@ -46,15 +46,16 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
 
   /* 3D overlay controls (built once, toggled by view state) */
-  const toggle = (label: string, key: 'wire' | 'cotas' | 'corte') => {
+  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'corte') => {
     const b = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ [key]: !st.view[key] }) }, label)
     return b
   }
   const bWire = toggle('Wireframe', 'wire')
   const bCotas = toggle('Cotas', 'cotas')
+  const bGrid = toggle('Grade', 'grid')
   const bCorte = toggle('Corte', 'corte')
   const bFrame = h('button', { type: 'button', class: 'chip ov', title: 'Enquadrar o gabinete (ou dê duplo clique)', onClick: () => viewer?.frame() }, 'Enquadrar')
-  const toggles = h('div', { class: 'ov-toggles' }, bWire, bCotas, bCorte, bFrame)
+  const toggles = h('div', { class: 'ov-toggles' }, bWire, bCotas, bGrid, bCorte, bFrame)
 
   const slider = (label: string, get: () => number, set: (v: number) => void, max = 100, step = 1) => {
     const input = h('input', { type: 'range', min: 0, max, step, value: get(), 'aria-label': label })
@@ -141,7 +142,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const viewOptions = (): ViewOptions => {
     const v = st.view
     return {
-      wire: v.wire, cotas: v.cotas, corte: v.corte, corteEixo: v.corteEixo, cortePos: v.cortePos,
+      wire: v.wire, cotas: v.cotas, grid: v.grid, corte: v.corte, corteEixo: v.corteEixo, cortePos: v.cortePos,
       abertura: v.tab === '3d' ? v.abertura : 0,
       explosao: v.tab === 'explodida' ? v.explosao : 0,
       selectedBay: st.sel.bay,
@@ -158,6 +159,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
     paneMesa.hidden = v.tab !== 'mesa'
     bWire.setAttribute('aria-pressed', String(v.wire))
     bCotas.setAttribute('aria-pressed', String(v.cotas))
+    bGrid.setAttribute('aria-pressed', String(v.grid))
     bCorte.setAttribute('aria-pressed', String(v.corte))
     sOpen.wrap.hidden = v.tab !== '3d'
     sExp.wrap.hidden = v.tab !== 'explodida'

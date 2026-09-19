@@ -279,6 +279,16 @@ describe('seam knob distribution', () => {
     expect(veryLong.length).toBeGreaterThanOrEqual(4)
   })
 
+  it('the knob neck is thick: at least 80 % of the head, and at least 8 mm wide for a normal post', async () => {
+    const { knobFor } = await import('./split')
+    for (const post of [20, 24, 30]) {
+      const k = knobFor(post)
+      expect(k.root / k.head).toBeGreaterThanOrEqual(0.8)
+      expect(2 * k.root).toBeGreaterThanOrEqual(7)
+      expect(k.len).toBeLessThanOrEqual(k.head + 1e-9)
+    }
+  })
+
   it('skips spots without solid material and still fits the nearest solid one', async () => {
     const { seamKnobs, knobFor } = await import('./split')
     const { rect, diff } = await import('./plate2d')

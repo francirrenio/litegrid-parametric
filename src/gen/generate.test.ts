@@ -111,7 +111,7 @@ describe('generate: label holder and joint clearance', () => {
     expect(fitClearance(p)).toBe(0.1)
     p.advanced.fitClearance = 0.25
     expect(fitClearance(p)).toBe(0.25)
-    expect(seamPostWidth(8)).toBeGreaterThanOrEqual(20)
+    expect(seamPostWidth(8)).toBeGreaterThanOrEqual(26)
     expect(seamPostWidth(40)).toBeLessThanOrEqual(30)
     expect(knobFor(seamPostWidth(8)).head).toBeLessThan(knobFor(seamPostWidth(12)).head + 1e-9)
     expect(knobFor(30).head).toBeLessThanOrEqual(7.5)

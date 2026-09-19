@@ -1,3 +1,4 @@
+import { bedPicker } from './bed'
 import { append, esc, fmt, h, icon } from './dom'
 import type { Store } from './state'
 
@@ -41,6 +42,7 @@ export function createPlatesView(st: Store): { el: HTMLElement; refresh: () => v
       h('button', { type: 'button', class: 'btn sm ghost icon-only', 'aria-label': 'Próxima mesa', disabled: i >= plates.length - 1, onClick: () => go(i + 1) }, icon('down', 15)),
       h('span', { class: 'mono muted' }, `${i + 1} de ${plates.length} · ${fmt(bed.x)} × ${fmt(bed.y)} mm · ${plate.items.length} ${plate.items.length === 1 ? 'peça' : 'peças'}`),
       plate.oversize ? h('span', { class: 'chip-sev error' }, 'Maior que a mesa') : null,
+      bedPicker(st, true),
     ])
 
     const byId = new Map(st.result.parts.map((p) => [p.id, p]))

@@ -88,9 +88,19 @@ export function planPlates(parts: Part[], bed: { x: number; y: number }): Plate[
     }
   }
   for (const pl of plates) {
+    // Centre the whole group of parts on the bed (a lone part sits exactly in the middle).
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
     for (const it of pl.items) {
-      it.x -= bed.x / 2
-      it.y -= bed.y / 2
+      x0 = Math.min(x0, it.x - it.width / 2)
+      x1 = Math.max(x1, it.x + it.width / 2)
+      y0 = Math.min(y0, it.y - it.depth / 2)
+      y1 = Math.max(y1, it.y + it.depth / 2)
+    }
+    const dx = -(x0 + x1) / 2
+    const dy = -(y0 + y1) / 2
+    for (const it of pl.items) {
+      it.x += dx
+      it.y += dy
     }
   }
   return plates

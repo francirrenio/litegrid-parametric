@@ -16,6 +16,7 @@ export interface ViewState {
   tab: ViewTab
   wire: boolean
   cotas: boolean
+  grid: boolean
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -100,7 +101,7 @@ export class Store {
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()
