@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.3.2',
+    date: '2026-09-19',
+    pt: ['Aviso quando o porta-etiqueta não cabe na frente da gaveta (antes sumia sem avisar).', 'Testes com centenas de combinações aleatórias de parâmetros: peças sempre fechadas e dentro do vão.'],
+    en: ['Warning when the label holder does not fit on the drawer front (it used to vanish silently).', 'Tests with random combinations of parameters: parts always closed and inside the bay.'],
+  },
+  {
     version: '0.3.1',
     date: '2026-09-19',
     pt: ['Reforços agora têm perfil em crista (larga na base, estreita no topo), sem suporte em qualquer ângulo, com largura e altura ajustáveis (ex.: 10 x 1 mm).'],

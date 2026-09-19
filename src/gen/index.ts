@@ -33,7 +33,7 @@ export function generate(p: ProjectState): GenerateResult {
   const parts: Part[] = []
   const generators: Array<[string, PartGenerator]> = [
     ['gabinete', generateCabinetParts],
-    ['gavetas', generateDrawerParts],
+    ['gavetas', (pp, ll, nn) => generateDrawerParts(pp, ll, nn, (w) => warnings.push(w))],
     ['skins', generateSkinParts],
     ['fixações', generateFixingParts],
     ['peça de teste', (pp, ll, nn) => (pp.includeTestPiece ? generateTestParts(pp, ll, nn) : [])],

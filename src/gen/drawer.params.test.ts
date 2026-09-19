@@ -53,3 +53,12 @@ describe('ridge reinforcement', () => {
     expect(part.mesh.length).toBeGreaterThan(flat.mesh.length)
   })
 })
+
+describe('label holder without room', () => {
+  it('warns instead of silently dropping it', () => {
+    const p = defaultProject({ printBed: { x: 500, y: 500 }, height: 60 })
+    p.drawerDefaults = defaultDrawer({ labelHolder: true, labelMode: 'internal', labelHeight: 40, front: 'flat', handle: 'none' })
+    const r = generate(p)
+    expect(r.warnings.some((w) => /porta-etiqueta/.test(w.message))).toBe(true)
+  })
+})

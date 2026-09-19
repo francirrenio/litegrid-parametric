@@ -1,4 +1,4 @@
-import type { Bay, Layout } from '../core/layout'
+import type { Bay, Layout, Warning } from '../core/layout'
 import type { Nozzle } from '../core/nozzle'
 import { mat4RotX, mat4Translate, merge, translate, type Mat4, type Mesh, type Vec2 } from '../geom/mesh'
 import type { Part } from '../model/part'
@@ -108,7 +108,7 @@ function dividerMesh(b: Built, chamfer: boolean): Mesh {
   return prismAxis('z', poly, [], -b.dividerT / 2, b.dividerT / 2)
 }
 
-export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle): Part[] {
+export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle, warn?: (w: Warning) => void): Part[] {
   const groups = new Map<string, Group>()
   for (const bay of layout.bays) {
     const d = bay.drawer
@@ -159,6 +159,13 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
     }))
 
     const spec = labelSpec(d.width, c.w, c.fT, built.plan, g.cfg)
+    if (!spec && labelModeOf(g.cfg) !== 'none') {
+      warn?.({
+        code: 'design',
+        where: ref.id,
+        message: tr(`Gaveta ${ref.id}: sem espaço para o porta-etiqueta (aumente a altura da frente ou diminua a etiqueta).`, `Drawer ${ref.id}: no room for the label holder (raise the front height or shrink the label).`),
+      })
+    }
     if (spec && labelModeOf(g.cfg) === 'external') {
       const hk = `${spec.lw}x${spec.lh}`
       const entry = holders.get(hk) ?? { spec, placements: [] }

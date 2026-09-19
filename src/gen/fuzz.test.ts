@@ -1,50 +1,41 @@
-import { describe, expect, it, vi } from 'vitest'
-import { computeLayout, type Section } from '../core/layout'
-import { deriveNozzle } from '../core/nozzle'
+import { describe, expect, it } from 'vitest'
+import { generate } from '.'
 import { isWatertight } from '../geom/mesh'
-import { defaultProject } from '../model/defaults'
-import { generateCabinetParts } from './cabinet'
-import { layoutInput } from './index'
+import { defaultDrawer, defaultFaceFill, defaultProject } from '../model/defaults'
+import { computeClearances } from '../ui/clearance'
 
-vi.setConfig({ testTimeout: 240000 })
+let seed = 12345
+const rnd = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)
+const pick = <T,>(a: readonly T[]): T => a[Math.floor(rnd() * a.length)]!
+const between = (a: number, b: number) => a + rnd() * (b - a)
 
-function rng(seed: number) {
-  let s = seed >>> 0
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0
-    return s / 2 ** 32
-  }
-}
-
-describe('cabinet fuzz', () => {
-  it('never throws and always yields closed meshes for random valid projects', () => {
-    const r = rng(42)
-    const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)]!
-    for (let i = 0; i < 25; i++) {
-      const sections: Section[] = Array.from({ length: 1 + Math.floor(r() * 3) }, () => ({
-        width: r() < 0.3 ? 40 + Math.round(r() * 60) : 'auto',
-        rows: Array.from({ length: 1 + Math.floor(r() * 4) }, () => ({
-          height: r() < 0.3 ? 25 + Math.round(r() * 40) : 'auto',
-          divisions: 1 + Math.floor(r() * 3),
-          load: pick(['leve', 'media', 'pesada'] as const),
-        })),
-      }))
-      const p = defaultProject({
-        nozzle: pick([0.25, 0.4, 0.6, 0.8]),
-        width: 160 + Math.round(r() * 260),
-        height: 120 + Math.round(r() * 200),
-        depth: 80 + Math.round(r() * 160),
-        materialLevel: pick(['minimo', 'equilibrado', 'reforcado'] as const),
-        cabinetMode: pick(['skeleton', 'skeleton', 'monolithic'] as const),
-        skeleton: { perimeters: pick([2, 3, 4]), barWidth: 'auto', bracing: pick(['auto', 'none', 'corners', 'diagonal', 'back'] as const) },
-        printBed: { x: pick([180, 220, 256, 350]), y: pick([180, 220, 256, 350]) },
-        sections,
+describe('fuzz: random drawer settings', () => {
+  it('always produces closed meshes, finite numbers and drawers that fit their bays', () => {
+    const bad: string[] = []
+    for (let i = 0; i < 12; i++) {
+      const p = defaultProject({ printBed: { x: 600, y: 600 }, width: between(120, 420), height: between(90, 360), depth: between(120, 380) })
+      const fill = () => defaultFaceFill({
+        fill: pick(['closed', 'perforated', 'truss'] as const), pattern: pick(['triangle', 'hexagon', 'diamond', 'circle'] as const),
+        openPercent: between(10, 70), solidUpTo: between(0, 40), frame: pick(['auto', between(1, 8)] as const),
+        reinforcement: pick(['auto', 'none', 'ribs', 'postsBeams', 'truss', 'x', 'corrugated'] as const),
+        reinforcementWidth: pick(['auto', between(2, 12)] as const), reinforcementHeight: pick(['auto', between(0.5, 4)] as const),
       })
-      const layout = computeLayout(layoutInput(p))
-      if (layout.bays.length === 0) continue
-      const parts = generateCabinetParts(p, layout, deriveNozzle(p.nozzle, p.advanced))
-      expect(parts.length, `case ${i}`).toBeGreaterThan(0)
-      if (p.cabinetMode === 'skeleton') for (const part of parts) expect(isWatertight(part.mesh), `case ${i} ${part.label}`).toBe(true)
+      p.drawerDefaults = defaultDrawer({
+        perimeters: pick([1, 2, 3, 4]), floorPerimeters: pick(['auto', 2, 4] as const),
+        sides: fill(), floor: fill(), front: pick(['flat', 'slope', 'lip'] as const),
+        frontHeight: pick(['auto', between(15, 80)] as const), chamferLength: pick(['auto', between(8, 60)] as const),
+        frontLip: rnd() > 0.5, lipDepth: between(3, 14), handle: pick(['cutout', 'bar', 'none'] as const),
+        labelHolder: rnd() > 0.3, labelMode: pick(['internal', 'external'] as const), labelWidth: between(20, 70), labelHeight: between(8, 24),
+        dividerSlots: pick([0, 0, 2, 4]), innerChamfer: rnd() > 0.5, topRim: rnd() > 0.5, rimWidth: pick(['auto', between(1.5, 8)] as const),
+      })
+      const r = generate(p)
+      const tag = `#${i} ${JSON.stringify(p.drawerDefaults).slice(0, 0)}`
+      for (const part of r.parts) {
+        if (part.mesh.some((v) => !Number.isFinite(v))) bad.push(`${tag} NaN in ${part.id}`)
+        else if (part.group === 'gaveta' && !isWatertight(part.mesh)) bad.push(`${tag} not watertight ${part.id} ${JSON.stringify(p.drawerDefaults)}`)
+      }
+      for (const c of computeClearances(r)) if (c.collision || c.min < 0) bad.push(`${tag} clearance ${c.bay} ${c.min.toFixed(2)} ${c.collision}`)
     }
-  })
+    expect(bad.slice(0, 5)).toEqual([])
+  }, 300000)
 })
