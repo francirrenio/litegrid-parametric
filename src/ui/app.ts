@@ -19,27 +19,14 @@ export function mountApp(root: HTMLElement, st: Store): void {
   applyTheme()
 
   /* viewport */
-  const tabBtns = new Map<ViewTab, HTMLButtonElement>()
-  const tabsEl = h('div', { class: 'vp-tabs', role: 'tablist', 'aria-label': 'Visualização' })
-  for (const [id, label] of VIEW_TABS) {
-    const b = h('button', {
-      type: 'button', role: 'tab', class: 'vp-tab', onClick: () => st.setView({ tab: id }),
-      onKeydown: (e: KeyboardEvent) => {
-        const i = VIEW_TABS.findIndex((t) => t[0] === id)
-        const j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : -1
-        if (j >= 0 && j < VIEW_TABS.length) {
-          e.preventDefault()
-          st.setView({ tab: VIEW_TABS[j]![0] })
-          tabBtns.get(VIEW_TABS[j]![0])?.focus()
-        }
-      },
-    }, label)
-    tabBtns.set(id, b)
-    tabsEl.append(b)
-  }
+  const vpSelect = h(
+    'select',
+    { class: 'vp-select', 'aria-label': 'Visualização', onChange: (e: Event) => st.setView({ tab: (e.target as HTMLSelectElement).value as ViewTab }) },
+    VIEW_TABS.map(([id, label]) => h('option', { value: id }, label)),
+  )
   const busy = h('span', { class: 'busy', role: 'status', hidden: true }, h('span', { class: 'spin', 'aria-hidden': 'true' }), 'gerando…')
   const bbox = h('span', { class: 'bbox mono' })
-  const tabsRow = h('div', { class: 'vp-row' }, tabsEl, busy, bbox)
+  const tabsRow = h('div', { class: 'vp-row' }, vpSelect, busy, bbox)
 
   const glHost = h('div', { class: 'gl-host' })
   const pane3d = h('div', { class: 'pane pane3d' }, glHost)
@@ -77,6 +64,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
   const sOpen = slider('Abertura das gavetas', () => st.view.abertura, (v) => st.setView({ abertura: v }))
   const sExp = slider('Explosão', () => Math.round(st.view.explosao * 100), (v) => st.setView({ explosao: v / 100 }))
+  tabsRow.insertBefore(sOpen.wrap, busy)
+  tabsRow.insertBefore(sExp.wrap, busy)
   const sCut = slider('Posição do corte', () => st.view.cortePos, (v) => st.setView({ cortePos: v }))
   const axis = h(
     'select',
@@ -86,7 +75,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
     h('option', { value: 'z' }, 'corte frontal (Z)'),
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
-  const ovBottom = h('div', { class: 'ov-bottom' }, sOpen.wrap, sExp.wrap, cutRow)
+  const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
   pane3d.append(toggles, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
@@ -162,10 +151,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   let lastTab: ViewTab | null = null
   const paintView = () => {
     const v = st.view
-    for (const [id, b] of tabBtns) {
-      b.setAttribute('aria-selected', String(id === v.tab))
-      b.tabIndex = id === v.tab ? 0 : -1
-    }
+    vpSelect.value = v.tab
     const is3 = v.tab === '3d' || v.tab === 'explodida'
     pane3d.hidden = !is3
     pane2d.hidden = v.tab !== '2d'

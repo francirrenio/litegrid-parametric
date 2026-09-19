@@ -316,3 +316,10 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .lvl-x { width: 18px; height: 18px; line-height: 1; padding: 0; border-radius: 50%; border: 1px solid var(--border-3); background: var(--btn); color: var(--text-3); font-size: 13px; cursor: pointer; }
 .lvl-x:hover { background: var(--panel-3); color: var(--text); }
 .field-head { gap: 8px; }
+
+/* ── barra superior da vista: lista de vistas e controles ao lado ── */
+.vp-select { padding: 7px 10px; min-width: 128px; background: var(--btn); border: 1px solid var(--border-3); border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer; }
+.vp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.vp-row .ov-slider { display: flex; flex-direction: row; align-items: center; gap: 8px; flex: 0 1 230px; min-width: 150px; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--muted-2); }
+.vp-row .ov-slider span { white-space: nowrap; margin: 0; display: inline; }
+.vp-row .ov-slider input { flex: 1; min-width: 70px; }

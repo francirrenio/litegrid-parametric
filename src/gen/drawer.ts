@@ -4,9 +4,11 @@ import { mat4RotX, mat4Translate, merge, translate, type Mat4, type Mesh, type V
 import type { Part } from '../model/part'
 import { makePart } from '../model/part'
 import type { DrawerConfig, Load, ProjectState } from '../model/types'
+import { fitClearance } from './metrics'
 import { resolveForBay } from '../model/resolve'
 import { hashString, prismAxis } from './drawer-prims'
-import { frontMeshes, planFront } from './drawer-front'
+import { frontMeshes, planFront, type FrontPlan } from './drawer-front'
+import { labelHolderMesh, labelSpec, type LabelSpec } from './drawer-label'
 import {
   chamfers, faceHoles, frameOf, GROOVE_DEPTH, grooveRibs, reinforcement, resolveReinforcement, rims, topAt,
   wallPlates, type DrawerCtx,
@@ -49,6 +51,7 @@ function slotZs(c: DrawerCtx, n: number): number[] {
 }
 
 interface Built {
+  plan: FrontPlan
   mesh: Mesh
   pieces: Mesh[]
   ctx: DrawerCtx
@@ -61,13 +64,13 @@ export function buildDrawer(p: ProjectState, nz: Nozzle, dim: Bay['drawer'], cfg
   const W = dim.width, H = dim.height, D = dim.depth
   const w = nz.wall(cfg.perimeters)
   const fT = floorThickness(nz, w, cfg, load, W, D)
-  const plan = planFront(W, H, w, fT, nz, cfg)
+  const plan = planFront(W, H, w, fT, nz, cfg, D)
   const base = {
     W, H, Zf: D - plan.barOut, w, wf: plan.wf, fT, s: plan.s, Hf: plan.Hf, nz, cfg, load, smallest: p.smallestItem,
   }
   const ctx: DrawerCtx = { ...base, reinf: resolveReinforcement({ ...base }) }
   const dividerT = nz.wall(2)
-  const slotW = dividerT + 0.2
+  const slotW = dividerT + 2 * fitClearance(p)
   const nSlots = Math.min(MAX_SLOTS, Math.max(0, Math.floor(cfg.dividerSlots)))
   const slots = nSlots > 0 && W - 2 * w > 20 ? slotZs(ctx, nSlots) : []
   const gaps = slots.map((z) => [z - slotW / 2 - dividerT - 1, z + slotW / 2 + dividerT + 1] as [number, number])
@@ -75,7 +78,7 @@ export function buildDrawer(p: ProjectState, nz: Nozzle, dim: Bay['drawer'], cfg
   if (cfg.topRim || ctx.reinf === 'postsBeams') parts.push(...rims(ctx, ctx.reinf === 'postsBeams', gaps))
   if (cfg.innerChamfer) parts.push(...chamfers(ctx))
   if (slots.length > 0) parts.push(...grooveRibs(ctx, slots, slotW))
-  return { mesh: merge(...parts), pieces: parts, ctx, slots, dividerT, slotW }
+  return { plan, mesh: merge(...parts), pieces: parts, ctx, slots, dividerT, slotW }
 }
 
 function dividerMesh(b: Built, chamfer: boolean): Mesh {
@@ -104,6 +107,7 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
   }
 
   const parts: Part[] = []
+  const holders = new Map<string, { spec: LabelSpec; placements: Mat4[] }>()
   const labelCount = new Map<string, number>()
   const origin = (bay: Bay): [number, number, number] => [
     bay.x + (bay.clearWidth - bay.drawer.width) / 2,
@@ -139,6 +143,17 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
       note: hints.join(' '),
     }))
 
+    const spec = labelSpec(d.width, c.w, c.fT, built.plan, g.cfg)
+    if (spec) {
+      const hk = `${spec.lw}x${spec.lh}`
+      const entry = holders.get(hk) ?? { spec, placements: [] }
+      for (const b of g.bays) {
+        const [x, y, z] = origin(b)
+        entry.placements.push(mat4Translate(x + (b.drawer.width - spec.outerW) / 2, y + spec.y0, z + c.Zf))
+      }
+      holders.set(hk, entry)
+    }
+
     if (built.slots.length > 0) {
       const z0 = built.slots[0]!
       const refMesh = translate(dividerMesh(built, g.cfg.innerChamfer), ox + c.w + 0.3, oy + c.fT + 0.2, oz + z0)
@@ -156,6 +171,16 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
         note: 'Imprimir deitada. Encaixa nas ranhuras das laterais da gaveta.',
       }))
     }
+  }
+  for (const [hk, { spec, placements }] of holders) {
+    parts.push(makePart({
+      id: `porta-etiqueta-${hk}`,
+      label: `Porta-etiqueta ${Math.round(spec.lw)}x${Math.round(spec.lh)}`,
+      group: 'gaveta',
+      assembled: labelHolderMesh(spec, nz),
+      placements,
+      note: 'Imprimir deitada, sem suportes. Cole na frente da gaveta; a etiqueta de papel desliza por cima.',
+    }))
   }
   void OV
   void GROOVE_DEPTH

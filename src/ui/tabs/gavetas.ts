@@ -69,6 +69,10 @@ function scopeTree(st: Store): HTMLElement {
   return h('div', { class: 'scope-tree', role: 'group', 'aria-label': 'Onde aplicar os parâmetros' }, kids)
 }
 
+function withDefault<T>(m: Model<T>, fallback: T): Model<T> {
+  return { ...m, get: () => m.get() ?? fallback }
+}
+
 export function gavetasTab(st: Store): TabView {
   const scope = st.scope
   const root = scopeRoot(scope)
@@ -120,7 +124,13 @@ export function gavetasTab(st: Store): TabView {
       'Frente e acabamento',
       selectField<DrawerFront>(mk('front'), 'Frente', [['flat', 'Lisa'], ['slope', 'Chanfrada'], ['lip', 'Com aba']]),
       selectField<DrawerHandle>(mk('handle'), 'Puxador', [['cutout', 'Recorte'], ['bar', 'Barra'], ['none', 'Sem puxador']]),
-      checkField(mk<boolean>('labelHolder'), 'Porta-etiqueta'),
+      checkField(mk<boolean>('labelHolder'), 'Porta-etiqueta (peça separada, colar)', { rebuild: true }),
+      ...(resolveAt(st.project, st.scope).labelHolder
+        ? [
+            numField(withDefault(mk<number>('labelWidth'), 40), 'Largura da etiqueta', { min: 12, max: 120, unit: 'mm', slider: true, hint: 'O porta-etiqueta abre só nessa largura.' }),
+            numField(withDefault(mk<number>('labelHeight'), 14), 'Altura da etiqueta', { min: 6, max: 40, unit: 'mm', slider: true }),
+          ]
+        : []),
       numField(mk<number>('dividerSlots'), 'Ranhuras para divisórias', { min: 0, max: 12, slider: true, hint: 'Divisórias removíveis ao longo da largura (0 = nenhuma).' }),
       checkField(mk<boolean>('innerChamfer'), 'Cantos internos chanfrados'),
       checkField(mk<boolean>('topRim'), 'Borda superior reforçada'),

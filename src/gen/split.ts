@@ -2,7 +2,7 @@ import type { Vec2 } from '../geom/mesh'
 import { diff, intersect, polygonShape, rect, union, type Shape } from './plate2d'
 
 const MARGIN = 4
-const KNOB_SCALES = [1, 0.75, 0.55]
+const KNOB_SCALES = [1, 0.8, 0.6]
 
 interface Knob {
   root: number
@@ -10,16 +10,33 @@ interface Knob {
   len: number
 }
 
-const knobAt = (k: number): Knob => ({ root: 3.5 * k, head: 5.5 * k, len: 7 * k })
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-interface Box {
+/** Width of the solid post or beam at a seam: proportional to the bar width, between 20 and 30 mm. */
+export const seamPostWidth = (bw: number): number => clamp(2.6 * bw, 20, 30)
+
+/** Dovetail knob sized from the post: head about a quarter of its width (4 to 7.5 mm), so joints stay modest. */
+export function knobFor(postW: number, scale = 1): Knob {
+  const head = clamp(0.24 * postW, 4, 7.5) * scale
+  return { root: head * 0.64, head, len: head * 1.25 }
+}
+
+export interface Box {
   x0: number
   y0: number
   x1: number
   y1: number
 }
 
-function boxOf(shape: Shape): Box {
+/** Seam positions (plate-local coordinates) where a plate is cut to fit the bed. */
+export interface Seams {
+  xs: number[]
+  ys: number[]
+}
+
+export const NO_SEAMS: Seams = { xs: [], ys: [] }
+
+export function boxOf(shape: Shape): Box {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const poly of shape) for (const ring of poly) for (const [x, y] of ring) {
     if (x < x0) x0 = x
@@ -32,6 +49,40 @@ function boxOf(shape: Shape): Box {
 
 function transpose(shape: Shape): Shape {
   return shape.map((poly) => poly.map((ring) => ring.map(([x, y]) => [y, x] as [number, number])))
+}
+
+/**
+ * Decides where a plate of this outline must be cut so every piece (with its dovetail knobs) fits the bed in
+ * either orientation. Cuts are evenly spaced; the plate builder keeps a wide solid post or beam at each one.
+ */
+export function planSeams(box: Box, bed: { x: number; y: number }, knobLen: number): Seams {
+  const big = Math.max(bed.x, bed.y) - MARGIN
+  const small = Math.min(bed.x, bed.y) - MARGIN
+  const w = box.x1 - box.x0
+  const h = box.y1 - box.y0
+  const extra = knobLen + 1
+  let nx = 1, ny = 1
+  for (let guard = 0; guard < 24; guard++) {
+    const pw = w / nx + (nx > 1 ? extra : 0)
+    const ph = h / ny + (ny > 1 ? extra : 0)
+    const [a, b] = pw >= ph ? [pw, ph] : [ph, pw]
+    if (a <= big + 1e-6 && b <= small + 1e-6) break
+    if (pw >= ph) nx++
+    else ny++
+  }
+  const xs: number[] = []
+  const ys: number[] = []
+  for (let i = 1; i < nx; i++) xs.push(box.x0 + (w * i) / nx)
+  for (let i = 1; i < ny; i++) ys.push(box.y0 + (h * i) / ny)
+  return { xs, ys }
+}
+
+/** Solid strips (posts and beams) centred on each seam, to be kept free of windows. */
+export function seamZones(seams: Seams, box: Box, width: number): Shape[] {
+  return [
+    ...seams.xs.map((c) => rect(c - width / 2, box.y0 - 1, c + width / 2, box.y1 + 1)),
+    ...seams.ys.map((c) => rect(box.x0 - 1, c - width / 2, box.x1 + 1, c + width / 2)),
+  ]
 }
 
 type Ring = Array<[number, number]>
@@ -49,7 +100,6 @@ function solidAt(shape: Shape, x: number, y: number): boolean {
   return shape.some((poly) => pip(poly[0]!, x, y) && !poly.slice(1).some((h) => pip(h, x, y)))
 }
 
-/** True when a grid of sample points over the box lies inside the shape. */
 function solid(box: Box, shape: Shape): boolean {
   for (let x = box.x0; x <= box.x1 + 1e-9; x += 1.5) {
     for (let y = box.y0; y <= box.y1 + 1e-9; y += 1.5) if (!solidAt(shape, x, y)) return false
@@ -57,16 +107,41 @@ function solid(box: Box, shape: Shape): boolean {
   return true
 }
 
+/**
+ * Knob centres along a seam: at most three, each at the middle of a solid stretch (a bar between windows), taking the
+ * longest stretches first. A long stretch only gets a second knob when fewer than three stretches exist.
+ */
 function knobs(shape: Shape, c: number, y0: number, y1: number, k: Knob): number[] {
-  const valid: number[] = []
-  for (let y = y0 + k.head + 1; y <= y1 - k.head - 1; y += 2) {
-    if (solid({ x0: c - 2, y0: y - k.head - 1, x1: c + k.len + 2, y1: y + k.head + 1 }, shape)) valid.push(y)
+  const step = 2
+  const runs: Array<{ a: number; b: number }> = []
+  let cur: { a: number; b: number } | undefined
+  for (let y = y0 + k.head + 1; y <= y1 - k.head - 1; y += step) {
+    const ok = solid({ x0: c - 2, y0: y - k.head - 1, x1: c + k.len + 2, y1: y + k.head + 1 }, shape)
+    if (ok) {
+      if (cur) cur.b = y
+      else cur = { a: y, b: y }
+    } else if (cur) {
+      runs.push(cur)
+      cur = undefined
+    }
   }
-  const picked: number[] = []
-  for (const y of valid) {
-    if (picked.length === 0 || y - picked[picked.length - 1]! >= 2 * k.head + 8) picked.push(y)
+  if (cur) runs.push(cur)
+  if (runs.length === 0) return []
+  const span = y1 - y0
+  const want = Math.min(3, Math.max(2, Math.round(span / 90)))
+  const gap = 2 * k.head + 6
+  const byLength = runs.slice().sort((p, q) => q.b - q.a - (p.b - p.a))
+  const picked: number[] = byLength.slice(0, want).map((r) => (r.a + r.b) / 2)
+  for (const r of byLength) {
+    if (picked.length >= want) break
+    const len = r.b - r.a
+    if (len >= 2 * gap) {
+      for (const y of [r.a + len / 4, r.a + (3 * len) / 4]) {
+        if (picked.length < want && picked.every((q) => Math.abs(q - y) >= gap)) picked.push(y)
+      }
+    }
   }
-  return picked.slice(0, 3)
+  return picked.sort((p, q) => p - q)
 }
 
 function dovetail(c: number, y: number, k: Knob, grow: number): Shape {
@@ -78,60 +153,33 @@ function dovetail(c: number, y: number, k: Knob, grow: number): Shape {
   return polygonShape(pts)
 }
 
-/** Cuts a piece in two across x at the seam with the most usable joint knobs (butt joint if none fit). */
-function cutX(shape: Shape, fit: number): { pieces: [Shape, Shape]; knobsUsed: number } {
+/** Cuts at x = c with dovetail knobs in the plate's own plane (butt joint when no knob fits). */
+function cutAt(shape: Shape, c: number, fit: number, postW: number): Shape[] {
   const b = boxOf(shape)
-  const mid = (b.x0 + b.x1) / 2
-  const span = (b.x1 - b.x0) * 0.2
-  let best: { c: number; ys: number[]; k: Knob } | undefined
+  let ys: number[] = []
+  let k = knobFor(postW)
   for (const scale of KNOB_SCALES) {
-    const k = knobAt(scale)
-    for (let off = 0; off <= span; off += 3) {
-      for (const sign of off === 0 ? [1] : [1, -1]) {
-        const c = mid + sign * off
-        const ys = knobs(shape, c, b.y0, b.y1, k)
-        if (!best || ys.length > best.ys.length) best = { c, ys, k }
-        if (ys.length >= 2) break
-      }
-      if (best && best.ys.length >= 2) break
-    }
-    if (best && best.ys.length >= 2) break
+    k = knobFor(postW, scale)
+    ys = knobs(shape, c, b.y0, b.y1, k)
+    if (ys.length >= 2) break
   }
-  const c = best && best.ys.length > 0 ? best.c : mid
-  const ys = best?.ys ?? []
-  const k = best?.k ?? knobAt(1)
   const left = union(intersect(shape, rect(b.x0 - 1, b.y0 - 1, c, b.y1 + 1)), ...ys.map((y) => dovetail(c, y, k, 0)))
   const right = diff(intersect(shape, rect(c, b.y0 - 1, b.x1 + 1, b.y1 + 1)), ...ys.map((y) => dovetail(c, y, k, fit)))
-  return { pieces: [left, right], knobsUsed: ys.length }
+  return [left, right]
 }
 
-/**
- * Splits a plate shape into pieces that each fit the bed (either orientation). Pieces join with dovetail knobs
- * cut inside the plate's own plane, so they print flat with no support. Returns the shape itself when it fits.
- */
-export function splitShape(shape: Shape, bed: { x: number; y: number }, fit: number): Shape[] {
-  const usableX = bed.x - MARGIN, usableY = bed.y - MARGIN
-  const big = Math.max(usableX, usableY), small = Math.min(usableX, usableY)
-  const fits = (s: Shape) => {
+/** Splits a plate at the planned seams. Returns the shape itself when there are none. */
+export function splitAt(shape: Shape, seams: Seams, fit: number, postW: number): Shape[] {
+  const crosses = (s: Shape, c: number) => {
     const b = boxOf(s)
-    const dims = [b.x1 - b.x0, b.y1 - b.y0].sort((a, c) => c - a)
-    return dims[0]! <= big + 1e-6 && dims[1]! <= small + 1e-6
+    return b.x0 < c - 1e-6 && b.x1 > c + 1e-6
   }
   let pieces: Shape[] = [shape]
-  for (let iter = 0; iter < 8; iter++) {
-    let changed = false
-    const next: Shape[] = []
-    for (const piece of pieces) {
-      if (fits(piece)) { next.push(piece); continue }
-      const b = boxOf(piece)
-      const alongX = b.x1 - b.x0 >= b.y1 - b.y0
-      const cut = alongX ? cutX(piece, fit) : cutX(transpose(piece), fit)
-      changed = true
-      const [l, r] = cut.pieces
-      next.push(...(alongX ? [l, r] : [transpose(l), transpose(r)]))
-    }
-    pieces = next
-    if (!changed) break
+  for (const c of seams.xs) pieces = pieces.flatMap((pc) => (crosses(pc, c) ? cutAt(pc, c, fit, postW) : [pc]))
+  if (seams.ys.length > 0) {
+    let t = pieces.map(transpose)
+    for (const c of seams.ys) t = t.flatMap((pc) => (crosses(pc, c) ? cutAt(pc, c, fit, postW) : [pc]))
+    pieces = t.map(transpose)
   }
   return pieces
 }

@@ -3,7 +3,7 @@ import type { Nozzle } from '../core/nozzle'
 import type { Mat4, Vec2 } from '../geom/mesh'
 import type { FaceId, MaterialLevel, ProjectState } from '../model/types'
 import { skeletonMetrics } from './metrics'
-import { splitShape } from './split'
+import { boxOf, knobFor, NO_SEAMS, planSeams, seamPostWidth, seamZones, splitAt, type Seams } from './split'
 import {
   backPlane, diff, EMPTY, framePlane, planeBar, planeCircle, planeRect, shelfPlane, union, type Plane, type Shape,
 } from './plate2d'
@@ -21,6 +21,8 @@ export interface SkeletonPlate {
   shape: Shape
   /** Placement of this plate in assembled space (plate-local -> assembled). */
   matrix: Mat4
+  /** Cuts that make the plate fit the bed; each sits on a wide solid post or beam. */
+  seams: Seams
 }
 
 export interface SkeletonRow {
@@ -64,8 +66,9 @@ function evenCenters(a0: number, a1: number, n: number): number[] {
   return out
 }
 
-function tabLength(span: number, n: number): number {
-  return Math.min(18, Math.max(8, (span / n) * 0.35))
+/** Tab length: about a third of the space per tab, between 8 mm and twice the bar width (10 to 18 mm). */
+function tabLength(span: number, n: number, bw: number): number {
+  return Math.min(Math.min(18, Math.max(10, 2 * bw)), Math.max(8, (span / n) * 0.3))
 }
 
 function shelfMode(level: MaterialLevel, load: Load, isBase: boolean): ShelfMode {
@@ -160,10 +163,10 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   frames.push(W - t)
 
   const nZ = Math.max(2, Math.round((D - t) / 70))
-  const tlZ = tabLength(D - t, nZ)
+  const tlZ = tabLength(D - t, nZ, bw)
   const zc = evenCenters(t + bw, D - bw, nZ)
   const nY = Math.max(2, Math.round((H - 2 * t) / 70))
-  const tlY = tabLength(H - 2 * t, nY)
+  const tlY = tabLength(H - 2 * t, nY, bw)
   const yc = evenCenters(t + bw, H - t - bw, nY)
   const slotZ = (c: number, tl: number): [number, number] => [c - tl / 2 - fit, c + tl / 2 + fit]
   const divTabs = (row: SkeletonRow) => {
@@ -176,6 +179,11 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   const brMode = bracingFor(p.skeleton.bracing)
   const level = p.materialLevel
 
+  const postW = seamPostWidth(bw)
+  const plan = (base: Shape): Seams => (joinery ? planSeams(boxOf(base), p.printBed, knobFor(postW).len) : NO_SEAMS)
+  const zonesOf = (seams: Seams, base: Shape): Shape[] => seamZones(seams, boxOf(base), postW)
+  const cleanWins = (wins: Shape[], zones: Shape[]): Shape[] => (zones.length ? wins.map((w) => diff(w, ...zones)) : wins)
+
   const plates: SkeletonPlate[] = []
   const anchors = (face: FaceId) => ({ points: skeletonAnchors(p, nz, face) })
 
@@ -183,6 +191,9 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   {
     const pl = backPlane()
     let shape = planeRect(pl, 0, W, 0, H)
+    const seams = plan(shape)
+    const zones = zonesOf(seams, shape)
+    const wins: Shape[] = []
     const cuts: Shape[] = []
     const barsX: Array<[number, number]> = [[0, bw], [W - bw, W], ...frames.map((x): [number, number] => [x + t / 2 - bw / 2, x + t / 2 + bw / 2])]
     const xGaps = gaps(barsX, 0, W, 6)
@@ -194,7 +205,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       yGaps.forEach(([ya, yb], i) => {
         if (p.skeleton.bracing === 'back') return
         const row = sec?.rows.find((r) => r.y < yb - 0.01 && r.y + r.h > ya + 0.01)
-        for (const [wa, wb] of gaps((row?.dividers ?? []).map(divBar), xa, xb, 6)) cuts.push(brace(pl, wa, wb, ya, yb, brMode, i % 2 === 1, bw))
+        for (const [wa, wb] of gaps((row?.dividers ?? []).map(divBar), xa, xb, 6)) wins.push(brace(pl, wa, wb, ya, yb, brMode, i % 2 === 1, bw))
       })
     }
     for (const x of joinery ? frames : []) {
@@ -218,8 +229,8 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       cuts.push(planeRect(pl, cx - tlZ / 2 - fit, cx + tlZ / 2 + fit, H - t - fit, H + 1))
     }
     for (const [u, v] of anchors('back').points) cuts.push(planeCircle(pl, W - u, v, skeletonMetrics(p, nz).holeD / 2 + fit / 2))
-    shape = diff(shape, ...cuts)
-    plates.push({ key: 'costas', kind: 'costas', label: 'Costas', step: 1, thickness: t, plane: pl, shape, matrix: pl.matrix })
+    shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
+    plates.push({ key: 'costas', kind: 'costas', label: 'Costas', step: 1, thickness: t, plane: pl, shape, matrix: pl.matrix, seams })
   }
 
   /* ── base and top plates (XZ) ───────────────────────────────── */
@@ -227,6 +238,9 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     const y0 = kind === 'base' ? 0 : H - t
     const pl = shelfPlane(y0, D)
     let shape = planeRect(pl, 0, W, t, D)
+    const seams = plan(shape)
+    const zones = zonesOf(seams, shape)
+    const wins: Shape[] = []
     const tabs: Shape[] = []
     const nXe = Math.max(3, Math.round(W / 70))
     for (const cx of evenCenters(bw + 2, W - bw - 2, nXe)) tabs.push(planeRect(pl, cx - tlZ / 2, cx + tlZ / 2, 0, t))
@@ -243,15 +257,15 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     }
     const load: Load = kind === 'base' ? (p.sections[0]?.rows.at(-1)?.load ?? 'media') : 'leve'
     const mode = kind === 'base' ? shelfMode(level, load, true) : level === 'reforcado' ? 'closed' : 'rails'
-    cuts.push(...shelfWindows(pl, mode, 0, W, t, D, bw, [...frames, ...divX].map(sepBar)))
+    wins.push(...shelfWindows(pl, mode, 0, W, t, D, bw, [...frames, ...divX].map(sepBar)))
     for (const [u, v] of anchors(kind === 'base' ? 'bottom' : 'top').points) {
       const z = kind === 'base' ? v : D - v
       cuts.push(planeCircle(pl, u, z, skeletonMetrics(p, nz).holeD / 2 + fit / 2))
     }
-    shape = diff(shape, ...cuts)
+    shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
     return {
       key: kind, kind, label: kind === 'base' ? 'Base' : 'Topo', step: kind === 'base' ? 2 : 5,
-      thickness: t, plane: pl, shape, matrix: pl.matrix,
+      thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
     }
   }
   plates.push(horizontal('base'), horizontal('topo'))
@@ -260,6 +274,9 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   frames.forEach((x0, k) => {
     const pl = framePlane(x0, D)
     let shape = planeRect(pl, t, D, t, H - t)
+    const seams = plan(shape)
+    const zones = zonesOf(seams, shape)
+    const wins: Shape[] = []
     const tabs: Shape[] = []
     for (const c of zc) {
       tabs.push(planeRect(pl, c - tlZ / 2, c + tlZ / 2, H - t, H))
@@ -284,15 +301,15 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     const yGaps = gaps(barsY, t, H - t, 6)
     yGaps.forEach(([ya, yb], i) => {
       if (D - 2 * bw - t < 10) return
-      cuts.push(brace(pl, t + bw, D - bw, ya, yb, brMode, (i + k) % 2 === 1, bw))
+      wins.push(brace(pl, t + bw, D - bw, ya, yb, brMode, (i + k) % 2 === 1, bw))
     })
     const hole = skeletonMetrics(p, nz).holeD / 2 + fit / 2
     if (k === 0) for (const [u, v] of anchors('left').points) cuts.push(planeCircle(pl, u, v, hole))
     if (k === frames.length - 1) for (const [u, v] of anchors('right').points) cuts.push(planeCircle(pl, D - u, v, hole))
-    shape = diff(shape, ...cuts)
+    shape = diff(shape, ...cuts, ...cleanWins(wins, zones))
     plates.push({
       key: `quadro-${k}`, kind: 'quadro', label: k === 0 || k === frames.length - 1 ? 'Quadro lateral' : 'Quadro divisor',
-      step: 3, thickness: t, plane: pl, shape, matrix: pl.matrix,
+      step: 3, thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
     })
   })
 
@@ -300,6 +317,8 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   sections.forEach((sec) => sec.rows.forEach((row) => row.dividers.forEach((xd) => {
     const pl = framePlane(xd, D)
     let shape = planeRect(pl, t, D, row.y, row.y + row.h)
+    const seams = plan(shape)
+    const zones = zonesOf(seams, shape)
     const tabs: Shape[] = []
     for (const c of zc) {
       tabs.push(planeRect(pl, c - tlZ / 2, c + tlZ / 2, row.y + row.h, row.y + row.h + t))
@@ -313,7 +332,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
     if (yb - ya >= 10 && D - 2 * bw - t >= 10) cuts.push(brace(pl, t + bw, D - bw, ya, yb, brMode, false, bw))
     plates.push({
       key: `div-${r2(xd)}-${r2(row.y)}`, kind: 'divisoria', label: 'Divisória', step: 3,
-      thickness: t, plane: pl, shape: diff(shape, ...cuts), matrix: pl.matrix,
+      thickness: t, plane: pl, shape: diff(shape, ...cleanWins(cuts, zones)), matrix: pl.matrix, seams,
     })
   })))
 
@@ -333,6 +352,8 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
         slots.push(planeRect(pl, x - fit, x + t + fit, z0, z1))
       }
       let shape = planeRect(pl, xa, xb, t, D)
+      const seams = plan(shape)
+      const zones = zonesOf(seams, shape)
       const tabs: Shape[] = []
       for (const c of zc) {
         tabs.push(planeRect(pl, xa - tlL, xa, c - tlZ / 2, c + tlZ / 2))
@@ -342,10 +363,10 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
       for (const cx of evenCenters(xa + bw, xb - bw, nX)) tabs.push(planeRect(pl, cx - tlZ / 2, cx + tlZ / 2, 0, t))
       if (joinery) shape = union(shape, ...tabs)
       const mode = shelfMode(level, sh.loadAbove, false)
-      shape = diff(shape, ...slots, ...shelfWindows(pl, mode, xa, xb, t, D, bw, divs.map(sepBar)))
+      shape = diff(shape, ...slots, ...cleanWins(shelfWindows(pl, mode, xa, xb, t, D, bw, divs.map(sepBar)), zones))
       plates.push({
         key: `prat-${s}-${r2(sh.y)}`, kind: 'prateleira', label: 'Prateleira', step: 4,
-        thickness: t, plane: pl, shape, matrix: pl.matrix,
+        thickness: t, plane: pl, shape, matrix: pl.matrix, seams,
       })
     }
   })
@@ -353,7 +374,7 @@ export function buildSkeleton(p: ProjectState, layout: Layout, nz: Nozzle, joine
   if (p.skeleton.bracing === 'none') warnings.push('Sem travamento: o esqueleto pode deformar como paralelogramo. Use diagonais, esquadros ou costas fechadas.')
   const finalPlates: SkeletonPlate[] = []
   for (const pl of plates) {
-    const pieces = joinery ? splitShape(pl.shape, p.printBed, fit) : [pl.shape]
+    const pieces = joinery ? splitAt(pl.shape, pl.seams, fit, seamPostWidth(bw)) : [pl.shape]
     pieces.forEach((shape, i) => {
       const many = pieces.length > 1
       finalPlates.push({

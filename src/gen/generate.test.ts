@@ -71,3 +71,50 @@ describe('generate: structure thickness vs drawers', () => {
     }
   })
 })
+
+describe('generate: drawer front slope', () => {
+  it('a tall shallow drawer keeps its depth (the slope never projects past the bay)', async () => {
+    const { defaultProject: mk } = await import('../model/defaults')
+    const p = mk({ nozzle: 0.8, width: 300, height: 320, depth: 60, printBed: { x: 500, y: 500 }, sections: [{ width: 'auto', rows: [{ height: 'auto', divisions: 1, load: 'leve' }] }] })
+    p.drawerDefaults.front = 'slope'
+    const r = generate(p)
+    const bay = r.layout.bays[0]!
+    const dr = r.parts.find((x) => x.group === 'gaveta' && x.label.startsWith('Gaveta'))!
+    expect(dr.size[1]).toBeLessThanOrEqual(bay.drawer.depth + 0.1)
+  })
+})
+
+describe('generate: label holder and joint clearance', () => {
+  it('the label holder is a separate part as wide as the label, one per drawer', async () => {
+    const { defaultProject: mk } = await import('../model/defaults')
+    const p = mk({ printBed: { x: 500, y: 500 } })
+    p.drawerDefaults.labelHolder = true
+    p.drawerDefaults.labelWidth = 30
+    p.drawerDefaults.labelHeight = 12
+    const r = generate(p)
+    const holder = r.parts.find((x) => x.id.startsWith('porta-etiqueta'))
+    expect(holder).toBeDefined()
+    expect(holder!.size[0]).toBeGreaterThan(30)
+    expect(holder!.size[0]).toBeLessThan(30 + 10)
+    expect(holder!.instances.length).toBeGreaterThan(0)
+    expect(isWatertight(holder!.mesh)).toBe(true)
+    p.drawerDefaults.labelHolder = false
+    expect(generate(p).parts.some((x) => x.id.startsWith('porta-etiqueta'))).toBe(false)
+  })
+
+  it('joint clearance never goes below 0.1 mm and joints scale with the bar width', async () => {
+    const { defaultProject: mk } = await import('../model/defaults')
+    const { fitClearance } = await import('./metrics')
+    const { knobFor, seamPostWidth } = await import('./split')
+    const p = mk()
+    p.advanced.fitClearance = 0.02
+    expect(fitClearance(p)).toBe(0.1)
+    p.advanced.fitClearance = 0.25
+    expect(fitClearance(p)).toBe(0.25)
+    expect(seamPostWidth(8)).toBeGreaterThanOrEqual(20)
+    expect(seamPostWidth(40)).toBeLessThanOrEqual(30)
+    expect(knobFor(seamPostWidth(8)).head).toBeLessThan(knobFor(seamPostWidth(12)).head + 1e-9)
+    expect(knobFor(30).head).toBeLessThanOrEqual(7.5)
+    expect(knobFor(10).head).toBeGreaterThanOrEqual(4)
+  })
+})

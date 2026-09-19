@@ -210,3 +210,53 @@ describe('dividers between drawers', () => {
     expect(holes.length).toBeGreaterThan(2)
   })
 })
+
+describe('seams sit on solid posts and beams', () => {
+  it('a tall cabinet splits on wide solid strips with several joint knobs', () => {
+    const { p, nz, layout } = setup({
+      width: 300, height: 420, depth: 200, printBed: { x: 220, y: 220 },
+      sections: [
+        { width: 'auto', rows: [{ height: 'auto', divisions: 2 }, { height: 'auto', divisions: 2 }, { height: 'auto', divisions: 1 }, { height: 'auto', divisions: 2 }] },
+        { width: 'auto', rows: [{ height: 'auto', divisions: 1 }, { height: 'auto', divisions: 1 }] },
+      ],
+    })
+    const geo = buildSkeleton(p, layout, nz)
+    const seamed = new Map<string, typeof geo.plates>()
+    for (const pl of geo.plates) {
+      if (pl.seams.xs.length + pl.seams.ys.length === 0) continue
+      const k = pl.key.split('#')[0]!
+      seamed.set(k, [...(seamed.get(k) ?? []), pl])
+    }
+    expect(seamed.size).toBeGreaterThan(0)
+    for (const [key, pieces] of seamed) {
+      const merged = pieces.flatMap((x) => x.shape)
+      const s = pieces[0]!.seams
+      const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+      for (const poly of merged) for (const ring of poly) for (const [x, y] of ring) {
+        box.x0 = Math.min(box.x0, x); box.x1 = Math.max(box.x1, x); box.y0 = Math.min(box.y0, y); box.y1 = Math.max(box.y1, y)
+      }
+      for (const c of s.xs) {
+        let n = 0, solidN = 0
+        for (let y = box.y0 + 1; y < box.y1; y += 1.5) for (let x = c - 9; x <= c + 9; x += 1.5) {
+          n++
+          if (merged.some((poly) => pip(poly[0]!, x, y) && !poly.slice(1).some((h) => pip(h, x, y)))) solidN++
+        }
+        expect(solidN / n, `${key} seam x=${c.toFixed(0)}`).toBeGreaterThan(0.6)
+      }
+    }
+    for (const part of generateCabinetParts(p, layout, nz)) {
+      const [w, d] = part.size
+      expect(Math.max(w, d) <= 216 + 1e-6 && Math.min(w, d) <= 216 + 1e-6, part.label).toBe(true)
+      expect(isWatertight(part.mesh), part.label).toBe(true)
+    }
+  })
+})
+
+function pip(ring: number[][], x: number, y: number) {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!, [xj, yj] = ring[j]!
+    if (yi! > y !== yj! > y && x < ((xj! - xi!) * (y - yi!)) / (yj! - yi!) + xi!) inside = !inside
+  }
+  return inside
+}

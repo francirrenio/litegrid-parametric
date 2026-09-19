@@ -52,8 +52,31 @@ export function intersect(a: Shape, b: Shape): Shape {
 
 const open = (ring: Ring): Vec2[] => ring.slice(0, -1).map(([x, y]) => [x, y] as Vec2)
 
+/**
+ * Vertices where two parts of a shape (or a hole and its outline) touch at a single point make a non-manifold edge
+ * once extruded. A tiny notch at each of them separates the parts.
+ */
+export function unpinch(shape: Shape, size = 0.06): Shape {
+  const seen = new Map<string, number>()
+  const pinches: Array<[number, number]> = []
+  for (const poly of shape as Polygon[]) {
+    for (const ring of poly) {
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [x, y] = ring[i]!
+        const k = `${x.toFixed(5)},${y.toFixed(5)}`
+        const n = (seen.get(k) ?? 0) + 1
+        seen.set(k, n)
+        if (n === 2) pinches.push([x, y])
+      }
+    }
+  }
+  if (pinches.length === 0) return shape
+  return diff(shape, ...pinches.map(([x, y]) => rect(x - size, y - size, x + size, y + size)))
+}
+
 /** Extrudes every polygon of the shape from z = 0 to `thickness`. */
-export function shapeMesh(shape: Shape, thickness: number): Mesh {
+export function shapeMesh(input: Shape, thickness: number): Mesh {
+  const shape = unpinch(input)
   const out: number[] = []
   for (const poly of shape as Polygon[]) {
     const [outer, ...holes] = poly

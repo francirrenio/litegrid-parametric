@@ -5,7 +5,6 @@ import { clamp, prismAxis } from './drawer-prims'
 import type { DrawerCtx } from './drawer-walls'
 
 const OV = 0.3
-const CARD_GAP = 0.6
 const BAR_OUT = 7
 
 export interface FrontPlan {
@@ -18,12 +17,14 @@ export interface FrontPlan {
   wf: number
 }
 
-export function planFront(W: number, H: number, w: number, fT: number, nz: Nozzle, cfg: DrawerConfig): FrontPlan {
+export function planFront(W: number, H: number, w: number, fT: number, nz: Nozzle, cfg: DrawerConfig, D: number): FrontPlan {
   let s = 0
   let Hf = H
   if (cfg.front === 'slope' && H >= 25) {
     Hf = clamp(Math.round(H * 0.55), fT + 10, H)
     s = H - Hf
+    const maxS = D * 0.6
+    if (s > maxS) { s = maxS; Hf = H - s }
     if (s < 6) { s = 0; Hf = H }
   }
   const barOut = cfg.handle === 'bar' ? BAR_OUT : 0
@@ -33,16 +34,8 @@ export function planFront(W: number, H: number, w: number, fT: number, nz: Nozzl
     const nd = Math.min(12, Hf - fT - 6, nw / 2 - 2)
     if (nd >= 3) notch = { nw, nd, bh: nw / 2 - nd }
   }
-  let label: FrontPlan['label'] = null
-  if (cfg.labelHolder && W - 2 * w >= 40) {
-    const lw = Math.min(W - 2 * w - 10, 60)
-    const reserved = notch ? notch.nd : barOut ? barOut + 3 : 0
-    const y1 = Hf - (reserved + 1.5)
-    const y0 = y1 - clamp(0.35 * Hf, 6, 14)
-    const ys = y0 - 1.5
-    if (lw >= (notch ? notch.nw + 6 : 28) && ys >= fT + 2 && y1 - y0 >= 5) label = { lw, y0, y1, ys, fr: nz.wall(2) }
-  }
-  const wf = label ? w + CARD_GAP + label.fr : w
+  const label: FrontPlan['label'] = null
+  const wf = w
   return { s, Hf, barOut, notch, label, wf }
 }
 
@@ -64,20 +57,7 @@ export function frontMeshes(c: DrawerCtx, plan: FrontPlan): Mesh[] {
   const { W, w, Zf, Hf } = plan.label ? { ...c, Hf: plan.Hf } : { ...c, Hf: plan.Hf }
   const outline = frontOutline(c, plan)
   const cx = W / 2
-  const lab = plan.label
-  if (!lab) {
-    out.push(prismAxis('z', outline, [], Zf - w, Zf))
-  } else {
-    const zi = Zf - plan.wf
-    out.push(prismAxis('z', outline, [], zi, zi + w))
-    const zSkin = Zf - lab.fr
-    const win = rect(cx - lab.lw / 2 + 2, lab.y0, cx + lab.lw / 2 - 2, lab.y1)
-    out.push(prismAxis('z', outline, [win], zSkin, Zf))
-    const sx0 = cx - lab.lw / 2, sx1 = cx + lab.lw / 2
-    const xa = w / 2, xb = W - w / 2
-    const spacer: Vec2[] = [[xa, 0], [xb, 0], [xb, Hf], [sx1, Hf], [sx1, lab.ys], [sx0, lab.ys], [sx0, Hf], [xa, Hf]]
-    out.push(prismAxis('z', spacer, [], zi + w - OV, zSkin + OV))
-  }
+  out.push(prismAxis('z', outline, [], Zf - w, Zf))
   if (c.cfg.front === 'lip') {
     const l = 8, tip = 1.2
     const zi = Zf - plan.wf

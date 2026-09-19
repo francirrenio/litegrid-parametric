@@ -29,7 +29,7 @@ export function avancadoTab(st: Store): TabView {
       optField(pm('advanced.clearances.lateral'), 'Gaveta, lateral (por lado)', { min: 0, max: 2, step: 0.05, unit: 'mm', placeholder: String(DEFAULT_CLEARANCES.lateral) }),
       optField(pm('advanced.clearances.top'), 'Gaveta, topo', { min: 0, max: 3, step: 0.05, unit: 'mm', placeholder: String(DEFAULT_CLEARANCES.top) }),
       optField(pm('advanced.clearances.back'), 'Gaveta, fundo', { min: 0, max: 5, step: 0.1, unit: 'mm', placeholder: String(DEFAULT_CLEARANCES.back) }),
-      optField(pm('advanced.fitClearance'), 'Encaixes (abas e ranhuras)', { min: 0, max: 1, step: 0.01, unit: 'mm', placeholder: '0,15' }),
+      optField(pm('advanced.fitClearance'), 'Folga dos encaixes (por lado)', { min: 0.1, max: 1, step: 0.01, unit: 'mm', placeholder: '0,15', hint: 'Vale para abas, ranhuras, pinos, emendas e ranhuras de divisória. O mínimo é 0,1 mm.' }),
     ),
     group(
       'Mesa de impressão',

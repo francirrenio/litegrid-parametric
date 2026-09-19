@@ -40,6 +40,8 @@ export function defaultDrawer(overrides: Partial<DrawerConfig> = {}): DrawerConf
     front: 'slope',
     handle: 'cutout',
     labelHolder: true,
+    labelWidth: 40,
+    labelHeight: 14,
     dividerSlots: 0,
     innerChamfer: true,
     topRim: false,

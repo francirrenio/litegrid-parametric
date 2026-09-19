@@ -54,7 +54,10 @@ export interface DrawerConfig {
   floor: FaceFill
   front: DrawerFront
   handle: DrawerHandle
+  /** Separate card holder part, printed apart and glued on the drawer front. */
   labelHolder: boolean
+  labelWidth: number
+  labelHeight: number
   /** Removable divider slots across the drawer width (0 = none). */
   dividerSlots: number
   innerChamfer: boolean
