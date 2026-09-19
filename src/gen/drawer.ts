@@ -8,7 +8,7 @@ import { fitClearance } from './metrics'
 import { resolveForBay } from '../model/resolve'
 import { hashString, prismAxis } from './drawer-prims'
 import { frontMeshes, planFront, type FrontPlan } from './drawer-front'
-import { labelHolderMesh, labelSpec, type LabelSpec } from './drawer-label'
+import { holderThickness, labelHolderMesh, labelSpec, type LabelSpec } from './drawer-label'
 import {
   chamfers, faceHoles, frameOf, GROOVE_DEPTH, grooveRibs, reinforcement, resolveReinforcement, rims, topAt,
   wallPlates, type DrawerCtx,
@@ -69,6 +69,12 @@ export function buildDrawer(p: ProjectState, nz: Nozzle, dim: Bay['drawer'], cfg
   const w = nz.wall(cfg.perimeters)
   const fT = floorThickness(nz, w, cfg, load, W, D)
   const plan = planFront(W, H, w, fT, nz, cfg, D)
+  const spec = labelSpec(W, w, fT, plan, cfg)
+  if (spec) {
+    const depth = holderThickness(nz) + 0.2
+    plan.wf = Math.max(plan.wf, depth + 0.9)
+    plan.pocket = { x0: (W - spec.outerW) / 2, x1: (W + spec.outerW) / 2, y0: spec.y0, y1: spec.y0 + spec.outerH, depth }
+  }
   const base = {
     W, H, Zf: D - plan.barOut, w, wf: plan.wf, fT, s: plan.s, Hf: plan.Hf, nz, cfg, load, smallest: p.smallestItem,
   }
@@ -153,7 +159,7 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
       const entry = holders.get(hk) ?? { spec, placements: [] }
       for (const b of g.bays) {
         const [x, y, z] = origin(b)
-        entry.placements.push(mat4Translate(x + (b.drawer.width - spec.outerW) / 2, y + spec.y0, z + c.Zf))
+        entry.placements.push(mat4Translate(x + (b.drawer.width - spec.outerW) / 2, y + spec.y0, z + c.Zf - holderThickness(nz) - 0.1))
       }
       holders.set(hk, entry)
     }
@@ -183,7 +189,7 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
       group: 'gaveta',
       assembled: labelHolderMesh(spec, nz),
       placements,
-      note: tr('Imprimir deitada, sem suportes. Cole na frente da gaveta; a etiqueta de papel desliza por cima.', 'Print lying flat, without supports. Glue it to the front of the drawer; the paper label slides in over it.'),
+      note: tr('Imprimir deitada, sem suportes. Cole no rebaixo da frente da gaveta (fica rente); a etiqueta de papel desliza por cima.', 'Print lying flat, without supports. Glue it into the recess in the drawer front (it sits flush); the paper label slides in over it.'),
     }))
   }
   void OV

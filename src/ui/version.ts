@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.9',
+    date: '2026-09-19',
+    pt: ['Puxador e porta-etiqueta não sobressaem mais da frente da gaveta: o puxador em barra virou fenda com apoio por dentro e o porta-etiqueta fica num rebaixo, rente. A profundidade da gaveta não muda.'],
+    en: ['Handle and label holder no longer stick out of the drawer front: the bar handle became a slot with a catch inside and the label holder sits in a flush recess. The drawer depth does not change.'],
+  },
+  {
     version: '0.2.8',
     date: '2026-09-19',
     pt: ['Barra da vista 3D reorganizada: ferramentas com ícone à esquerda (Medir, Corte, Montagem, Folgas), menu Exibir (aramado, cotas, grade, alterações), Peças e Enquadrar no topo.', 'Medir sai com Esc.'],

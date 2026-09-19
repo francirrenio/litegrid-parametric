@@ -179,17 +179,17 @@ export function gavetasTab(st: Store): TabView {
           'Shape of the drawer front. Flat is simplest; Sloped makes the contents easier to see and reach; With lip adds an edge that helps pulling and labelling.',
         ),
       }),
-      selectField<DrawerHandle>(mk('handle'), tr('Puxador', 'Handle'), [['cutout', tr('Recorte', 'Cutout')], ['bar', tr('Barra', 'Bar')], ['none', tr('Sem puxador', 'No handle')]], {
+      selectField<DrawerHandle>(mk('handle'), tr('Puxador', 'Handle'), [['cutout', tr('Recorte', 'Cutout')], ['bar', tr('Fenda com apoio', 'Slot with catch')], ['none', tr('Sem puxador', 'No handle')]], {
         tip: tr(
-          'Como puxar a gaveta. Recorte é um vão para o dedo (não sobressai); Barra é mais confortável para gavetas pesadas; Sem puxador só se você abrir de outro modo.',
-          'How you pull the drawer. Cutout is a finger notch (nothing sticks out); Bar is more comfortable for heavy drawers; No handle only if you open it another way.',
+          'Como puxar a gaveta. Nada sobressai da frente. Recorte é um vão para o dedo na borda; Fenda com apoio é uma abertura na frente com um apoio por dentro, mais firme para gavetas pesadas; Sem puxador só se você abrir de outro modo.',
+          'How you pull the drawer. Nothing sticks out of the front. Cutout is a finger notch on the edge; Slot with catch is an opening in the front with a catch inside, firmer for heavy drawers; No handle only if you open it another way.',
         ),
       }),
       checkField(mk<boolean>('labelHolder'), tr('Porta-etiqueta (peça separada, colar)', 'Label holder (separate part, glued)'), {
         rebuild: true,
         tip: tr(
-          'Adiciona uma moldura na frente onde entra uma etiqueta de papel, para identificar o conteúdo. É impressa à parte e colada na gaveta.',
-          'Adds a frame on the front that holds a paper label to identify the contents. It is printed separately and glued to the drawer.',
+          'Adiciona uma moldura na frente onde entra uma etiqueta de papel, para identificar o conteúdo. É impressa à parte e colada dentro de um rebaixo da frente, sem sobressair.',
+          'Adds a frame on the front that holds a paper label to identify the contents. It is printed separately and glued into a recess in the front, without sticking out.',
         ),
       }),
       ...(resolveAt(st.project, st.scope).labelHolder

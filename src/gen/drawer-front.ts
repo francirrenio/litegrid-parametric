@@ -5,12 +5,18 @@ import { clamp, prismAxis } from './drawer-prims'
 import type { DrawerCtx } from './drawer-walls'
 
 const OV = 0.3
-const BAR_OUT = 7
+const GRIP_H = 8
+const GRIP_DEPTH = 6
 
 export interface FrontPlan {
   s: number
   Hf: number
+  /** Always 0: nothing sticks out of the front plane, so the drawer keeps its full depth. */
   barOut: number
+  /** Finger slot through the front wall for the recessed pull (handle 'bar'). */
+  slot: { x0: number; x1: number; y0: number; y1: number } | null
+  /** Recess in the front face where the label holder sits flush; the wall behind it is `wf - depth` thick. */
+  pocket: { x0: number; x1: number; y0: number; y1: number; depth: number } | null
   notch: { nw: number; nd: number; bh: number } | null
   label: { lw: number; y0: number; y1: number; ys: number; fr: number } | null
   /** Total front wall thickness. */
@@ -27,7 +33,12 @@ export function planFront(W: number, H: number, w: number, fT: number, nz: Nozzl
     if (s > maxS) { s = maxS; Hf = H - s }
     if (s < 6) { s = 0; Hf = H }
   }
-  const barOut = cfg.handle === 'bar' ? BAR_OUT : 0
+  const barOut = 0
+  let slot: FrontPlan['slot'] = null
+  if (cfg.handle === 'bar' && Hf - GRIP_H - 2 >= fT + 10 && W - 2 * w >= 24) {
+    const bw = Math.min(60, (W - 2 * w) * 0.5)
+    slot = { x0: W / 2 - bw / 2, x1: W / 2 + bw / 2, y0: Hf - 2 - GRIP_H, y1: Hf - 2 }
+  }
   let notch: FrontPlan['notch'] = null
   if (cfg.handle === 'cutout') {
     const nw = Math.min(clamp(0.35 * (W - 2 * w), 16, 32), (W - 2 * w) * 0.5)
@@ -36,7 +47,7 @@ export function planFront(W: number, H: number, w: number, fT: number, nz: Nozzl
   }
   const label: FrontPlan['label'] = null
   const wf = w
-  return { s, Hf, barOut, notch, label, wf }
+  return { s, Hf, barOut, slot, pocket: null, notch, label, wf }
 }
 
 const rect = (x0: number, y0: number, x1: number, y1: number): Vec2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
@@ -54,27 +65,36 @@ function frontOutline(c: DrawerCtx, plan: FrontPlan): Vec2[] {
 
 export function frontMeshes(c: DrawerCtx, plan: FrontPlan): Mesh[] {
   const out: Mesh[] = []
-  const { W, w, Zf, Hf } = plan.label ? { ...c, Hf: plan.Hf } : { ...c, Hf: plan.Hf }
-  const outline = frontOutline(c, plan)
+  const { W, Zf, Hf } = { ...c, Hf: plan.Hf }
   const cx = W / 2
-  out.push(prismAxis('z', outline, [], Zf - w, Zf))
+  const outline = frontOutline(c, plan)
+  const hole = (r: { x0: number; x1: number; y0: number; y1: number }): Vec2[] => rect(r.x0, r.y0, r.x1, r.y1)
+  const slotHole = plan.slot ? [hole(plan.slot)] : []
+  if (plan.pocket) {
+    const d = plan.pocket.depth
+    out.push(prismAxis('z', outline, slotHole, Zf - plan.wf, Zf - d + OV))
+    out.push(prismAxis('z', outline, [hole(plan.pocket), ...slotHole], Zf - d, Zf))
+  } else {
+    out.push(prismAxis('z', outline, slotHole, Zf - plan.wf, Zf))
+  }
   if (c.cfg.front === 'lip') {
     const l = 8, tip = 1.2
     const zi = Zf - plan.wf
     const prof: Vec2[] = [[zi + OV, Hf], [zi - l, Hf], [zi - l, Hf - tip], [zi + OV, Hf - tip - (l + OV) * 1.08]]
-    const x0 = w + 0.4, x1 = W - w - 0.4
+    const x0 = c.w + 0.4, x1 = W - c.w - 0.4
     if (plan.notch) {
       const g = plan.notch.nw / 2 + 1.5
       if (cx - g - x0 > 3) out.push(prismAxis('x', prof, [], x0, cx - g))
       if (x1 - (cx + g) > 3) out.push(prismAxis('x', prof, [], cx + g, x1))
     } else out.push(prismAxis('x', prof, [], x0, x1))
   }
-  if (plan.barOut > 0) {
-    const yt = Hf - 1.5
-    const o = plan.barOut
-    const prof: Vec2[] = [[Zf - OV, yt - (o + OV) * 1.08], [Zf + o, yt], [Zf - OV, yt]]
-    const bw = Math.min(60, (W - 2 * w) * 0.5)
-    out.push(prismAxis('x', prof, [], cx - bw / 2, cx + bw / 2))
+  if (plan.slot) {
+    // Catch behind the slot: a wedge on the inside of the front wall that the finger hooks, printable without support.
+    const zi = Zf - plan.wf
+    const yb = plan.slot.y0
+    const o = GRIP_DEPTH
+    const prof: Vec2[] = [[zi + OV, yb - (o + OV) * 1.08], [zi - o, yb], [zi + OV, yb]]
+    out.push(prismAxis('x', prof, [], plan.slot.x0, plan.slot.x1))
   }
   return out
 }

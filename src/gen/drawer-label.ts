@@ -23,6 +23,11 @@ export interface LabelSpec {
   y0: number
 }
 
+/** Thickness of the holder: plate plus the rails, which is how deep its recess in the drawer front is. */
+export function holderThickness(nz: Nozzle): number {
+  return Math.max(1, nz.layerHeight * Math.ceil(1 / nz.layerHeight)) + POCKET + LIP
+}
+
 /** Where the separate label holder goes on the drawer front, or null when the front has no room. */
 export function labelSpec(W: number, w: number, fT: number, plan: FrontPlan, cfg: DrawerConfig): LabelSpec | null {
   if (!cfg.labelHolder) return null
@@ -32,7 +37,7 @@ export function labelSpec(W: number, w: number, fT: number, plan: FrontPlan, cfg
   if (lw < 12 || lh < 5) return null
   const outerW = lw + CLEAR + 2 * RAIL
   const outerH = lh + CLEAR + RAIL
-  const reserved = plan.notch ? plan.notch.nd : plan.barOut ? plan.barOut + 3 : 0
+  const reserved = plan.notch ? plan.notch.nd : plan.slot ? plan.Hf - plan.slot.y0 : 0
   const yTop = plan.Hf - (reserved + 2)
   const y0 = yTop - outerH
   if (y0 < fT + 1) return null
