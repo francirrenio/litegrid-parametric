@@ -201,6 +201,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
       }
     }
     if (st.vis.isolate) visPanel.append(h('p', { class: 'hint' }, `Mostrando só: ${label(st.vis.isolate)}`))
+    if (st.vis.isolateBay) visPanel.append(h('p', { class: 'hint' }, `Mostrando só a gaveta ${st.vis.isolateBay}`))
     if (anyHidden(st.vis)) visPanel.append(h('button', { type: 'button', class: 'btn sm', onClick: () => { st.showAll() } }, 'Mostrar tudo'))
   }
 
@@ -225,7 +226,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
           'div',
           { class: 'pop-acts' },
           h('button', { type: 'button', class: 'btn sm', onClick: () => { st.togglePart(part.id); hidePop() } }, 'Esconder'),
-          h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, true); hidePop() } }, 'Só esta'),
+          h('button', { type: 'button', class: 'btn sm', onClick: () => { if (part.group === 'gaveta' && bayId) st.setIsolateBay(bayId); else st.setIsolate(part.id, true); hidePop() } }, 'Só esta'),
           part.instances.length > 1 ? h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, false); hidePop() } }, 'Só as iguais') : null,
         ),
       )
@@ -266,7 +267,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const paintView = () => {
     const v = st.view
     const sig = JSON.stringify(st.vis)
-    const hiddenN = st.vis.isolate ? 1 : st.vis.hiddenGroups.length + st.vis.hiddenParts.length
+    const hiddenN = st.vis.isolate || st.vis.isolateBay ? 1 : st.vis.hiddenGroups.length + st.vis.hiddenParts.length
     bVis.textContent = hiddenN ? `Peças · ${hiddenN} ${hiddenN === 1 ? 'oculta' : 'ocultas'}` : 'Peças'
     bVis.classList.toggle('on', hiddenN > 0)
     bVis.setAttribute('aria-pressed', String(hiddenN > 0))

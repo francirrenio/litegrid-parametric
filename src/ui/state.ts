@@ -375,6 +375,14 @@ export class Store {
   setIsolate(id: string | null, one = this.vis.isolateOne): void {
     this.vis.isolate = id
     this.vis.isolateOne = one
+    this.vis.isolateBay = null
+    this.visChanged()
+  }
+
+  /** Shows only the drawer in this bay; unlike a part id, the bay id stays valid while its settings change. */
+  setIsolateBay(bayId: string | null): void {
+    this.vis.isolateBay = bayId
+    this.vis.isolate = null
     this.visChanged()
   }
 

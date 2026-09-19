@@ -39,8 +39,16 @@ describe('visibility', () => {
     expect(isInstanceVisible(all, 'gaveta', 'g', 4)).toBe(true)
   })
 
+  it('isolating a bay shows only the drawer parts inside it', () => {
+    const v: Visibility = { ...ALL_VISIBLE, isolateBay: 'BAY_S1_R1_C1' }
+    expect(isInstanceVisible(v, 'gaveta', 'anything', 0, true)).toBe(true)
+    expect(isInstanceVisible(v, 'gaveta', 'anything', 0, false)).toBe(false)
+    expect(isInstanceVisible(v, 'gabinete', 'quadro', 0, true)).toBe(false)
+    expect(anyHidden(v)).toBe(true)
+  })
+
   it('isolating wins over hidden groups', () => {
-    const v: Visibility = { hiddenGroups: ['gaveta'], hiddenParts: [], isolate: 'g', isolateOne: false }
+    const v: Visibility = { hiddenGroups: ['gaveta'], hiddenParts: [], isolate: 'g', isolateOne: false, isolateBay: null }
     expect(isInstanceVisible(v, 'gaveta', 'g', 0)).toBe(true)
   })
 })

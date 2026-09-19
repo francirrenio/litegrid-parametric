@@ -247,12 +247,43 @@ export class Viewer {
     this.requestRender()
   }
 
+  private lastVisSig = ''
+
   setOptions(o: ViewOptions): void {
     const selChanged = o.selectedBay !== this.opts.selectedBay
+    const sig = JSON.stringify(o.vis)
+    const visChanged = sig !== this.lastVisSig && this.lastVisSig !== ''
+    this.lastVisSig = sig
     this.opts = { ...o }
     if (selChanged) this.buildSelection()
     this.applyOptions()
+    if (visChanged) this.frameVisible()
     this.requestRender()
+  }
+
+  /** Brings the camera to what is visible: one isolated drawer fills the view, showing everything frames the cabinet. */
+  private frameVisible(): void {
+    const box = new THREE.Box3()
+    let n = 0
+    for (const it of this.insts) {
+      if (!it.node.visible) continue
+      it.node.updateMatrixWorld(true)
+      box.union(new THREE.Box3().setFromObject(it.node))
+      n++
+    }
+    if (n === 0) return
+    if (n === this.insts.length) return this.frame()
+    const size = box.getSize(new THREE.Vector3())
+    const c = box.getCenter(new THREE.Vector3())
+    const r = Math.max(size.x, size.y, size.z, 10)
+    const dist = (r * 0.85) / Math.tan((this.camera.fov * Math.PI) / 360)
+    const dir = this.camera.position.clone().sub(this.controls.target).normalize()
+    cancelAnimationFrame(this.anim)
+    this.controls.target.copy(c)
+    this.camera.position.copy(c).addScaledVector(dir, dist)
+    this.controls.minDistance = Math.min(this.controls.minDistance, r * 0.3)
+    this.camera.updateProjectionMatrix()
+    this.controls.update()
   }
 
   private colorOf(p: Part): string {
@@ -332,6 +363,7 @@ export class Viewer {
     // Disabling clipping means pushing the plane far away rather than toggling the array.
     if (!o.corte) this.clip.constant = 1e6
 
+    const isoBox = o.vis.isolateBay ? this.bays.find((b) => b.id === o.vis.isolateBay) : undefined
     const c = this.center
     const open = (this.cabinet.z * 0.9 * o.abertura) / 100
     const t = new THREE.Matrix4()
@@ -339,11 +371,15 @@ export class Viewer {
       const off = new THREE.Vector3()
       if (o.explosao > 0) off.copy(it.center).sub(c).multiplyScalar(o.explosao * 1.1)
       if (it.group === 'gaveta') off.z += open
-      it.node.visible = isInstanceVisible(o.vis, it.group, it.partId, it.index)
+      it.node.visible = isInstanceVisible(o.vis, it.group, it.partId, it.index, isoBox ? this.inBox(it.center, isoBox) : false)
       t.makeTranslation(off.x, off.y, off.z)
       it.node.matrix.multiplyMatrices(t, it.base)
       it.node.matrixWorldNeedsUpdate = true
     }
+  }
+
+  private inBox(p: THREE.Vector3, b: Bay): boolean {
+    return p.x >= b.x && p.x <= b.x + b.clearWidth && p.y >= b.y && p.y <= b.y + b.clearHeight
   }
 
   frame(): void {

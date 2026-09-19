@@ -36,6 +36,7 @@ export interface HiddenEntry {
 /** What is hidden in this bay and the single action that brings it back. */
 export function hiddenInBay(result: GenerateResult, vis: Visibility, bayId: string): HiddenEntry[] {
   const out = new Map<string, HiddenEntry>()
+  if (vis.isolateBay && vis.isolateBay !== bayId) out.set('all', { kind: 'all', id: 'all', label: 'tudo' })
   for (const p of partsInBay(result, bayId)) {
     if (vis.isolate && (vis.isolate !== p.id || vis.isolateOne)) {
       out.set('all', { kind: 'all', id: 'all', label: 'tudo' })

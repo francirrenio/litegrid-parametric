@@ -39,17 +39,20 @@ export interface Visibility {
   /** Show only this part type (all copies, or just the first one when `isolateOne`). */
   isolate: string | null
   isolateOne: boolean
+  /** Show only the drawer parts of this bay. A bay id survives regeneration; a part id does not (it embeds the settings). */
+  isolateBay: string | null
 }
 
-export const ALL_VISIBLE: Visibility = { hiddenGroups: [], hiddenParts: [], isolate: null, isolateOne: true }
+export const ALL_VISIBLE: Visibility = { hiddenGroups: [], hiddenParts: [], isolate: null, isolateOne: true, isolateBay: null }
 
-export function isInstanceVisible(v: Visibility, group: PartGroup, partId: string, index: number): boolean {
+export function isInstanceVisible(v: Visibility, group: PartGroup, partId: string, index: number, inBay = false): boolean {
+  if (v.isolateBay) return group === 'gaveta' && inBay
   if (v.isolate) return partId === v.isolate && (!v.isolateOne || index === 0)
   return !v.hiddenGroups.includes(group) && !v.hiddenParts.includes(partId)
 }
 
 export function anyHidden(v: Visibility): boolean {
-  return v.isolate !== null || v.hiddenGroups.length > 0 || v.hiddenParts.length > 0
+  return v.isolate !== null || v.isolateBay !== null || v.hiddenGroups.length > 0 || v.hiddenParts.length > 0
 }
 
 export function projectColors(p: ProjectState): Colors {
