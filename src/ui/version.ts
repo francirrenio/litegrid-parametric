@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.6',
+    date: '2026-09-19',
+    pt: ['Aba Gavetas reorganizada: Laterais, Fundo, Frente e Interior e bordas, cada uma só com o que vale para ela.', 'Fundo: escolha de espessura (automática, normal ou reforçada) no lugar do reforço das paredes; Moldura só aparece quando há furos.'],
+    en: ['Drawers tab reorganised: Sides, Floor, Front and Interior and edges, each with only what applies to it.', 'Floor: thickness choice (automatic, normal or reinforced) instead of the wall reinforcement; Frame only shows when there are holes.'],
+  },
+  {
     version: '0.2.5',
     date: '2026-09-19',
     pt: ['Fundo da gaveta não mostra mais "Fechada até a altura", que não tinha efeito nele.', '"Menor item guardado" deixa claro que também define o tamanho dos furos.'],

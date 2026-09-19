@@ -134,7 +134,7 @@ export function gavetasTab(st: Store): TabView {
     const nz = nzOf()
     const lh = nz.layerHeight
     const t = lh * Math.ceil(Math.max(0.9, nz.wall(n)) / lh - 1e-9)
-    return tr(`Espessura do fundo: ${fmt(t, 2)} mm (mínimo 0,9 mm)`, `Floor thickness: ${fmt(t, 2)} mm (minimum 0.9 mm)`)
+    return tr(`Fundo final: ${fmt(t, 2)} mm (mínimo 0,9 mm)`, `Final floor: ${fmt(t, 2)} mm (minimum 0.9 mm)`)
   }
   const floorPerim = () =>
     autoField(mk<number | 'auto'>('floorPerimeters'), tr('Perímetros do fundo', 'Floor perimeters'), {
@@ -168,7 +168,7 @@ export function gavetasTab(st: Store): TabView {
     face(tr('Laterais e traseira', 'Sides and rear'), 'sides'),
     face(tr('Fundo', 'Floor'), 'floor'),
     group(
-      tr('Frente e acabamento', 'Front and finish'),
+      tr('Frente', 'Front'),
       selectField<DrawerFront>(mk('front'), tr('Frente', 'Front'), [['flat', tr('Lisa', 'Flat')], ['slope', tr('Chanfrada', 'Sloped')], ['lip', tr('Com aba', 'With lip')]], {
         tip: tr(
           'Formato da frente da gaveta. Lisa é a mais simples; Chanfrada facilita ver e pegar o conteúdo; Com aba cria uma borda que ajuda a puxar e a colar etiquetas.',
@@ -207,6 +207,9 @@ export function gavetasTab(st: Store): TabView {
             }),
           ]
         : []),
+    ),
+    group(
+      tr('Interior e bordas', 'Interior and edges'),
       numField(mk<number>('dividerSlots'), tr('Ranhuras para divisórias', 'Divider slots'), {
         min: 0, max: 12, slider: true,
         hint: tr('Divisórias removíveis ao longo da largura (0 = nenhuma).', 'Removable dividers along the width (0 = none).'),

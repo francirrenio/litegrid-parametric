@@ -120,7 +120,7 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
       }),
     )
   }
-  if (cur !== 'none') {
+  if (cur !== 'closed') {
     out.push(
       autoField(m<number | 'auto'>('frame'), tr('Moldura', 'Frame'), {
         min: 0.4, max: 30, step: 0.1, unit: 'mm', fallback: 1.6,
@@ -130,7 +130,18 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
         ),
       }),
     )
-    if (cur !== 'panel') {
+  }
+  {
+    if (part === 'floor') {
+      out.push(
+        selectField(m<FaceFill['reinforcement']>('reinforcement'), tr('Espessura do fundo', 'Floor thickness'), [['auto', tr('Automática (pela carga)', 'Automatic (by load)')], ['none', tr('Normal', 'Normal')], ['ribs', tr('Reforçado (mín. 1,8 mm)', 'Reinforced (min. 1.8 mm)')]], {
+          tip: tr(
+            'Automático engrossa o fundo só em gavetas grandes com carga pesada. Reforçado deixa o fundo com pelo menos 1,8 mm; Normal usa a espessura dos perímetros do fundo.',
+            'Automatic thickens the floor only on large drawers with a heavy load. Reinforced makes the floor at least 1.8 mm; Normal uses the thickness from the floor perimeters.',
+          ),
+        }),
+      )
+    } else if (cur !== 'panel') {
       out.push(
         selectField(m<FaceFill['reinforcement']>('reinforcement'), tr('Reforço', 'Reinforcement'), REINFORCEMENTS, {
           tip: tr(
