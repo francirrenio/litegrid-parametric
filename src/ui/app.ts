@@ -71,9 +71,10 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const axis = h(
     'select',
     { class: 'ov-axis', 'aria-label': 'Eixo do corte', onChange: (e: Event) => st.setView({ corteEixo: (e.target as HTMLSelectElement).value as 'x' | 'y' | 'z' }) },
+    // Print-bed axes: Z is up and Y is depth, while the model keeps Y up and Z toward the front.
     h('option', { value: 'x' }, 'corte lateral (X)'),
-    h('option', { value: 'y' }, 'corte horizontal (Y)'),
-    h('option', { value: 'z' }, 'corte frontal (Z)'),
+    h('option', { value: 'z' }, 'corte frontal (Y)'),
+    h('option', { value: 'y' }, 'corte horizontal (Z)'),
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
