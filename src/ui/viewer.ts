@@ -5,6 +5,7 @@ import type { GenerateResult, Part, PartGroup } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { ALL_VISIBLE, isInstanceVisible, partColor, type Colors, type Visibility } from './appearance'
 import { instanceBox, partBox } from './bounds'
+import { levelOf, type BayClearance } from './clearance'
 import type { DiffItem } from './diff'
 import { fmt } from './dom'
 
@@ -12,6 +13,7 @@ export interface ViewOptions {
   wire: boolean
   cotas: boolean
   grid: boolean
+  folgas: boolean
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -66,10 +68,13 @@ export class Viewer {
   private raf = 0
   private framed = false
   private opts: ViewOptions = {
-    wire: false, cotas: false, grid: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0, selectedBay: null,
+    wire: false, cotas: false, grid: true, folgas: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0, selectedBay: null,
     vis: { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }, colors: { groups: {}, parts: {} },
   }
   private partInfo = new Map<string, { mat: THREE.MeshStandardMaterial; part: Part }>()
+  private clearGroup: THREE.Group | null = null
+  private clearLabels: Array<{ el: HTMLElement; pos: THREE.Vector3 }> = []
+  private clearHost: HTMLElement
   private diffItems: DiffItem[] = []
   private diffNodes: THREE.Mesh[] = []
   private diffOn = false
@@ -97,6 +102,9 @@ export class Viewer {
     this.labelHost = document.createElement('div')
     this.labelHost.className = 'dim-labels'
     host.appendChild(this.labelHost)
+    this.clearHost = document.createElement('div')
+    this.clearHost.className = 'dim-labels'
+    host.appendChild(this.clearHost)
 
     this.scene.add(this.content, this.overlay, this.pickers)
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.05))
@@ -252,6 +260,40 @@ export class Viewer {
     this.requestRender()
   }
 
+  /** Clearance view: each bay outlined green, amber or red by how much room its drawer has, with the gaps written on it. */
+  setClearances(list: BayClearance[]): void {
+    if (this.clearGroup) {
+      this.overlay.remove(this.clearGroup)
+      this.disposeGroup(this.clearGroup)
+    }
+    this.clearHost.textContent = ''
+    this.clearLabels = []
+    const group = new THREE.Group()
+    const D = this.cabinet.z
+    const colors = { ok: 0x34d399, tight: 0xf6b03c, bad: 0xf43f5e }
+    for (const c of list) {
+      const b = this.bays.find((x) => x.id === c.bay)
+      if (!b) continue
+      const level = levelOf(c)
+      const d = Math.min(b.clearDepth, D)
+      const geo = new THREE.BoxGeometry(b.clearWidth, b.clearHeight, d)
+      const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: colors[level] }))
+      lines.position.set(b.x + b.clearWidth / 2, b.y + b.clearHeight / 2, D - d / 2)
+      group.add(lines)
+      const el = document.createElement('div')
+      el.className = `dim-label clear-${level}`
+      el.title = 'Folga lateral (por lado) | topo | fundo, em mm'
+      el.textContent = `${fmt(c.lateral, 2)} | ${fmt(c.top, 2)} | ${fmt(c.back, 1)}${c.collision ? ' · colide' : ''}`
+      this.clearHost.appendChild(el)
+      this.clearLabels.push({ el, pos: new THREE.Vector3(b.x + b.clearWidth / 2, b.y + b.clearHeight / 2, D) })
+    }
+    group.visible = this.opts.folgas
+    this.clearGroup = group
+    this.overlay.add(group)
+    this.clearHost.style.display = this.opts.folgas ? '' : 'none'
+    this.requestRender()
+  }
+
   /** Highlights, in amber, the triangles that changed in the last generation. */
   setDiff(items: DiffItem[]): void {
     this.diffItems = items
@@ -385,6 +427,8 @@ export class Viewer {
     for (const m of this.edgeMats) m.visible = !o.wire
     for (const { mat, part } of this.partInfo.values()) mat.color.set(partColor(o.colors, part))
     if (this.dimLines) this.dimLines.visible = o.cotas
+    if (this.clearGroup) this.clearGroup.visible = o.folgas
+    this.clearHost.style.display = o.folgas ? '' : 'none'
     if (this.grid) this.grid.visible = o.grid
     this.labelHost.style.display = o.cotas ? '' : 'none'
 
@@ -638,6 +682,15 @@ export class Viewer {
     if (this.el.clientWidth < 2) return
     this.renderer.render(this.scene, this.camera)
     this.renderCube()
+    if (this.opts.folgas) {
+      const w = this.el.clientWidth, h = this.el.clientHeight
+      const v = new THREE.Vector3()
+      for (const l of this.clearLabels) {
+        v.copy(l.pos).project(this.camera)
+        l.el.style.opacity = v.z < 1 ? '1' : '0'
+        l.el.style.transform = `translate(-50%,-50%) translate(${((v.x + 1) / 2) * w}px,${((1 - v.y) / 2) * h}px)`
+      }
+    }
     if (this.opts.cotas) {
       const w = this.el.clientWidth, h = this.el.clientHeight
       const v = new THREE.Vector3()

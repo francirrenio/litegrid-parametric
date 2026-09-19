@@ -118,3 +118,17 @@ describe('generate: label holder and joint clearance', () => {
     expect(knobFor(10).head).toBeGreaterThanOrEqual(4)
   })
 })
+
+describe('generate: test piece', () => {
+  it('adds the test kit only when asked, without generator errors', async () => {
+    const { defaultProject: mk } = await import('../model/defaults')
+    const p = mk()
+    expect(generate(p).parts.some((x) => x.group === 'teste')).toBe(false)
+    p.includeTestPiece = true
+    const r = generate(p)
+    expect(errors(r)).toEqual([])
+    const test = r.parts.filter((x) => x.group === 'teste')
+    expect(test.length).toBeGreaterThanOrEqual(5)
+    for (const t of test) expect(isWatertight(t.mesh), t.label).toBe(true)
+  })
+})

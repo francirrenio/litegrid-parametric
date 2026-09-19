@@ -7,6 +7,7 @@ import { generateCabinetParts } from './cabinet'
 import { generateDrawerParts } from './drawer'
 import { generateFixingParts } from './fixings'
 import { generateSkinParts } from './skins'
+import { generateTestParts } from './testpiece'
 import { buildSuggestions } from './suggestions'
 
 type PartGenerator = (p: ProjectState, layout: Layout, nz: Nozzle) => Part[]
@@ -34,6 +35,7 @@ export function generate(p: ProjectState): GenerateResult {
     ['gavetas', generateDrawerParts],
     ['skins', generateSkinParts],
     ['fixações', generateFixingParts],
+    ['peça de teste', (pp, ll, nn) => (pp.includeTestPiece ? generateTestParts(pp, ll, nn) : [])],
   ]
   if (layout.bays.length > 0) {
     for (const [name, gen] of generators) {

@@ -1,6 +1,8 @@
 import {
   assemblyGuide, manifestJson, plate3mf, plateStl, projectZip, slicerProfileText, slug, zipStore,
 } from '../export'
+import { planPlates } from '../export'
+import { generate } from '../gen'
 import { stlBytes } from '../export/stl'
 import { download, dropdown, h, icon, menuHeading, menuItem, toast } from './dom'
 import type { Store } from './state'
@@ -42,6 +44,13 @@ export function createExportMenu(st: Store): HTMLElement {
         menuItem('3MF da mesa atual', guard('3MF da mesa', () => {
           if (plate) download(plate3mf(plate, r.parts), `${base}-mesa-${n}.3mf`, 'model/3mf')
         }), { disabled: !plate, hint: plate ? `mesa ${n}` : '' }),
+        menuHeading('Antes de imprimir tudo'),
+        menuItem('Peça de teste (STL, uma mesa)', guard('peça de teste', () => {
+          const test = generate({ ...p, includeTestPiece: true }).parts.filter((x) => x.group === 'teste')
+          const pl = planPlates(test, p.printBed)[0]
+          if (!pl) throw new Error('não foi possível gerar a peça de teste')
+          download(plateStl(pl, test), `${base}-peca-de-teste.stl`, 'model/stl')
+        }), { hint: 'recomendado' }),
         menuHeading('Projeto'),
         menuItem('ZIP completo', guard('ZIP completo', () => download(projectZip(r, p, st.plateLayout), `${base}.zip`, 'application/zip'))),
         menuItem('layout_manifest.json', guard('manifesto', () => download(manifestJson(r), 'layout_manifest.json', 'application/json'))),

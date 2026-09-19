@@ -1,5 +1,6 @@
 import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor, partFamily } from './appearance'
 import { hiddenInBay } from './bayparts'
+import { computeClearances, summarize } from './clearance'
 import { createHeader } from './header'
 import type { PartGroup } from '../model/part'
 import { fmt, h, toast } from './dom'
@@ -49,13 +50,15 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
 
   /* 3D overlay controls (built once, toggled by view state) */
-  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'diff' | 'corte') => {
+  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'folgas' | 'diff' | 'corte') => {
     const b = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ [key]: !st.view[key] }) }, label)
     return b
   }
   const bWire = toggle('Wireframe', 'wire')
   const bCotas = toggle('Cotas', 'cotas')
   const bGrid = toggle('Grade', 'grid')
+  const bFolgas = toggle('Folgas', 'folgas')
+  bFolgas.title = 'Contorna cada vão em verde, amarelo ou vermelho conforme a folga da gaveta e escreve as folgas: lateral | topo | fundo'
   const bDiff = toggle('Alterações', 'diff')
   bDiff.title = 'Destaca em laranja o que mudou na última alteração (também pisca sozinho por alguns segundos)'
   const bCorte = toggle('Corte', 'corte')
@@ -69,8 +72,9 @@ export function mountApp(root: HTMLElement, st: Store): void {
       if (!visPanel.hidden) paintVis()
     },
   }, 'Peças')
-  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bDiff, bCorte, bFrame)
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bDiff, bCorte, bFrame)
   const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': 'Peça selecionada' })
+  const clearChip = h('div', { class: 'clear-chip', hidden: true, role: 'status' })
   const focusText = h('span', null)
   const focusChip = h('div', { class: 'focus-chip', hidden: true, role: 'status' }, focusText, h('button', { type: 'button', class: 'btn sm', onClick: () => st.setView({ autoFocus: false }) }, 'Ver tudo'))
 
@@ -95,7 +99,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, focusChip, visPanel, partPop, ovBottom, emptyMsg)
+  pane3d.append(toggles, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -160,7 +164,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const viewOptions = (): ViewOptions => {
     const v = st.view
     return {
-      wire: v.wire, cotas: v.cotas, grid: v.grid, corte: v.corte, corteEixo: v.corteEixo, cortePos: v.cortePos,
+      wire: v.wire, cotas: v.cotas, grid: v.grid, folgas: v.folgas, corte: v.corte, corteEixo: v.corteEixo, cortePos: v.cortePos,
       abertura: v.tab === '3d' ? v.abertura : 0,
       explosao: v.tab === 'explodida' ? v.explosao : 0,
       selectedBay: st.sel.bay,
@@ -296,6 +300,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
     bCotas.setAttribute('aria-pressed', String(v.cotas))
     bGrid.setAttribute('aria-pressed', String(v.grid))
     bDiff.setAttribute('aria-pressed', String(v.diff))
+    bFolgas.setAttribute('aria-pressed', String(v.folgas))
+    clearChip.hidden = !v.folgas || v.tab !== '3d'
     const fb = st.focusBay()
     focusChip.hidden = !fb || v.tab !== '3d'
     focusText.textContent = fb ? `Mostrando só a gaveta ${fb} enquanto você edita.` : ''
@@ -319,6 +325,11 @@ export function mountApp(root: HTMLElement, st: Store): void {
     viewer?.setResult(st.result, st.project)
     viewer?.setDiff(st.lastDiff)
     paintDiff()
+    const clears = computeClearances(st.result)
+    viewer?.setClearances(clears)
+    const sm = summarize(clears)
+    clearChip.className = `clear-chip ${sm.bad ? 'bad' : sm.tight ? 'tight' : 'ok'}`
+    clearChip.textContent = clears.length === 0 ? 'Sem gavetas para medir.' : sm.bad ? `${sm.bad} gaveta(s) com folga abaixo de 0,1 mm ou encostando na estrutura. Aumente a folga em Avançado.` : sm.tight ? `${sm.tight} gaveta(s) com folga apertada (0,1 a 0,2 mm). Pode emperrar; teste com a peça de teste.` : `Folga mínima ${sm.worst.toFixed(2).replace('.', ',')} mm: tudo certo. Verde = folga boa, amarelo = apertada, vermelho = pode emperrar.`
     viewer?.setOptions(viewOptions())
     emptyMsg.hidden = st.result.parts.length > 0
     v2.refresh()

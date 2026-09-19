@@ -1,4 +1,5 @@
-import { manifestJson, partStl, slug } from '../../export'
+import { manifestJson, partStl, planPlates, plateStl, slug } from '../../export'
+import { generate } from '../../gen'
 import type { Part } from '../../model/part'
 import { btn } from '../fields'
 import { isPartHidden, partColor } from '../appearance'
@@ -51,6 +52,19 @@ function list(st: Store, repaint: () => void): HTMLElement {
     return h('div', { class: 'empty' }, h('b', null, 'Nenhuma peça gerada ainda'), h('p', null, 'As peças aparecem aqui conforme os geradores ficam disponíveis para este projeto.'))
   }
   const total = parts.reduce((s, p) => s + p.instances.length, 0)
+  const testCard = h(
+    'div',
+    { class: 'test-card' },
+    h('b', null, 'Peça de teste'),
+    h('p', { class: 'hint' }, 'Antes de imprimir o conjunto, imprima esta peça pequena (uns minutos): uma gaveta em miniatura com as suas configurações e amostras dos encaixes. Se os encaixes ficarem soltos ou apertados, ajuste a folga em Avançado.'),
+    h('label', { class: 'vis-check' }, h('input', { type: 'checkbox', checked: !!st.project.includeTestPiece, onChange: (e: Event) => st.set('includeTestPiece', (e.target as HTMLInputElement).checked, true) }), h('span', null, 'Incluir na lista de peças e no ZIP')),
+    btn('Baixar peça de teste (STL)', () => {
+      const test = generate({ ...st.project, includeTestPiece: true }).parts.filter((x) => x.group === 'teste')
+      const pl = planPlates(test, st.project.printBed)[0]
+      if (pl) download(plateStl(pl, test), `${slug(st.project.name)}-peca-de-teste.stl`, 'model/stl')
+      else toast('Não foi possível gerar a peça de teste.', 'error')
+    }, { icon: 'download', sm: true, kind: 'primary' }),
+  )
   const rows = parts.map((p) => {
     const hidden = isPartHidden(st.vis, p.id) || st.vis.hiddenGroups.includes(p.group)
     const swatch = h('input', { type: 'color', class: 'swatch', value: partColor(st.project.colors, p), 'aria-label': `Cor de ${p.label}` })
@@ -72,6 +86,7 @@ function list(st: Store, repaint: () => void): HTMLElement {
   return h(
     'div',
     null,
+    testCard,
     h('p', { class: 'hint' }, `${parts.length} tipos de peça, ${total} no total. Tamanho na mesa, em mm.`),
     h(
       'div',

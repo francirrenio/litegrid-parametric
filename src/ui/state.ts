@@ -20,6 +20,8 @@ export interface ViewState {
   wire: boolean
   cotas: boolean
   grid: boolean
+  /** Outline every bay by how much room its drawer has. */
+  folgas: boolean
   /** Keep the last change highlighted (it always flashes for a few seconds). */
   diff: boolean
   /** While editing drawer settings, show only one drawer of the edited group. */
@@ -115,7 +117,7 @@ export class Store {
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, grid: true, diff: false, autoFocus: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()
