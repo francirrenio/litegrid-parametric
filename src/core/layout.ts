@@ -28,6 +28,8 @@ export interface LayoutInput {
   height: number
   depth: number
   sections: Section[]
+  /** Perimeters of the structural plates between drawers (must match the skeleton). Default 3. */
+  structuralPerimeters?: number
   advanced?: NozzleOverrides & { clearances?: Partial<Clearances> }
 }
 
@@ -109,7 +111,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export function computeLayout(input: LayoutInput): Layout {
   const warnings: Warning[] = []
   const nz = deriveNozzle(input.nozzle, input.advanced)
-  const t = nz.wall(3)
+  const t = nz.wall(input.structuralPerimeters ?? 3)
   const cl: Clearances = { ...DEFAULT_CLEARANCES, ...input.advanced?.clearances }
   const bays: Bay[] = []
 

@@ -18,6 +18,7 @@ export function layoutInput(p: ProjectState) {
     height: p.height,
     depth: p.depth,
     sections: p.sections,
+    structuralPerimeters: p.skeleton.perimeters,
     advanced: p.advanced,
   }
 }
