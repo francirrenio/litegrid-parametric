@@ -29,6 +29,8 @@ export interface ViewState {
   autoFocus: boolean
   /** Assembly guide: current step (1-based) or null when off. */
   montagem: number | null
+  /** Two-point measuring tool. */
+  medir: boolean
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -120,7 +122,7 @@ export class Store {
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, montagem: null, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, montagem: null, medir: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()

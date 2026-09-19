@@ -388,3 +388,6 @@ tr.dim-row { opacity: .45; }
 .mont-head { display: flex; justify-content: space-between; align-items: center; color: var(--accent); }
 .mont-parts { font-size: 11.5px; color: var(--text-3); }
 .mont-nav { display: flex; gap: 8px; justify-content: flex-end; }
+
+.measure-chip { right: auto; left: 12px; bottom: 70px; border-color: var(--warn-border); color: var(--warn); }
+.measure-label { color: var(--warn); font-weight: 600; }

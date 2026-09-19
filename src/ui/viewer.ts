@@ -9,6 +9,7 @@ import { instanceBox, partBox } from './bounds'
 import { levelOf, type BayClearance } from './clearance'
 import type { DiffItem } from './diff'
 import { fmt } from './dom'
+import { measurement, type Measurement } from './measure'
 
 export interface ViewOptions {
   wire: boolean
@@ -63,6 +64,11 @@ export class Viewer {
   private clip = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)
   private labels: Array<{ el: HTMLElement; pos: THREE.Vector3 }> = []
   private labelHost: HTMLElement
+  private measuring = false
+  private measurePts: THREE.Vector3[] = []
+  private measureGroup = new THREE.Group()
+  private measureEl: HTMLElement
+  onMeasure: (m: Measurement | null, points: number) => void = () => {}
   private box = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3(1, 1, 1))
   private cabinet = new THREE.Vector3(1, 1, 1)
   private center = new THREE.Vector3()
@@ -101,6 +107,10 @@ export class Viewer {
     this.renderer.localClippingEnabled = true
     this.renderer.domElement.className = 'gl'
     host.appendChild(this.renderer.domElement)
+    this.measureEl = document.createElement('div')
+    this.measureEl.className = 'dim-label measure-label'
+    this.measureEl.style.display = 'none'
+    host.appendChild(this.measureEl)
     this.labelHost = document.createElement('div')
     this.labelHost.className = 'dim-labels'
     host.appendChild(this.labelHost)
@@ -155,6 +165,7 @@ export class Viewer {
       if (!d || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return
       const dir = this.cubeDirAt(e)
       if (dir) this.snapTo(dir)
+      else if (this.measuring) this.measurePick(e)
       else this.pick(e)
     })
     dom.addEventListener('dblclick', (e) => this.recentre(e))
@@ -180,6 +191,7 @@ export class Viewer {
     this.disposeGroup(this.content)
     this.disposeGroup(this.overlay)
     this.disposeGroup(this.pickers)
+    this.clearMeasure()
     this.insts = []
     this.materials = []
     this.edgeMats = []
@@ -650,6 +662,63 @@ export class Viewer {
     this.onPickBay(bayId)
   }
 
+  /** Two-point measuring: clicks land on the nearest corner of the surface under the cursor when one is close. */
+  setMeasuring(on: boolean): void {
+    if (on === this.measuring) return
+    this.measuring = on
+    this.renderer.domElement.style.cursor = on ? 'crosshair' : ''
+    if (!on) this.clearMeasure()
+  }
+
+  clearMeasure(): void {
+    this.measurePts = []
+    this.overlay.remove(this.measureGroup)
+    this.disposeGroup(this.measureGroup)
+    this.measureGroup = new THREE.Group()
+    this.overlay.add(this.measureGroup)
+    this.measureEl.style.display = 'none'
+    this.onMeasure(null, 0)
+    this.requestRender()
+  }
+
+  private measurePick(e: MouseEvent): void {
+    this.ray.setFromCamera(this.ndc(e), this.camera)
+    this.scene.updateMatrixWorld(true)
+    const shown = this.insts.filter((i) => i.node.visible).map((i) => i.node)
+    const hit = this.ray.intersectObjects(shown, true).find((x) => x.object instanceof THREE.Mesh && x.face)
+    if (!hit || !hit.face) return
+    const pos = (hit.object as THREE.Mesh).geometry.getAttribute('position')
+    let p = hit.point.clone()
+    let best = 4
+    for (const idx of [hit.face.a, hit.face.b, hit.face.c]) {
+      const v = new THREE.Vector3().fromBufferAttribute(pos, idx).applyMatrix4(hit.object.matrixWorld)
+      const d = v.distanceTo(hit.point)
+      if (d < best) {
+        best = d
+        p = v
+      }
+    }
+    if (this.measurePts.length >= 2) this.clearMeasure()
+    this.measurePts.push(p)
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.8, this.camera.position.distanceTo(p) / 160), 12, 8), new THREE.MeshBasicMaterial({ color: 0xf6b03c, depthTest: false }))
+    dot.position.copy(p)
+    dot.renderOrder = 5
+    this.measureGroup.add(dot)
+    if (this.measurePts.length === 2) {
+      const [a, b] = this.measurePts as [THREE.Vector3, THREE.Vector3]
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: 0xf6b03c, depthTest: false }))
+      line.renderOrder = 5
+      this.measureGroup.add(line)
+      const m = measurement(a, b)
+      this.measureEl.textContent = `${fmt(m.dist, 2)} mm`
+      this.measureEl.style.display = ''
+      this.onMeasure(m, 2)
+    } else {
+      this.onMeasure(null, 1)
+    }
+    this.requestRender()
+  }
+
   private recentre(e: MouseEvent): void {
     this.ray.setFromCamera(this.ndc(e), this.camera)
     const hit = this.ray.intersectObjects([...this.content.children.filter((c) => c.visible), ...this.pickers.children], true)[0]
@@ -684,6 +753,11 @@ export class Viewer {
     if (this.el.clientWidth < 2) return
     this.renderer.render(this.scene, this.camera)
     this.renderCube()
+    if (this.measurePts.length === 2) {
+      const w = this.el.clientWidth, h = this.el.clientHeight
+      const mid = this.measurePts[0]!.clone().add(this.measurePts[1]!).multiplyScalar(0.5).project(this.camera)
+      this.measureEl.style.transform = `translate(-50%,-50%) translate(${((mid.x + 1) / 2) * w}px,${((1 - mid.y) / 2) * h - 14}px)`
+    }
     if (this.opts.folgas) {
       const w = this.el.clientWidth, h = this.el.clientHeight
       const v = new THREE.Vector3()

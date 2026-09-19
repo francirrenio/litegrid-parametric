@@ -42,9 +42,15 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const emptyMsg = h('div', { class: 'empty-3d', hidden: true }, 'nenhuma peça gerada ainda')
 
   let viewer: Viewer | null = null
+  let measureText = ''
+  const measureChip = h('div', { class: 'clear-chip measure-chip', hidden: true, role: 'status' })
   try {
     viewer = new Viewer(glHost)
     viewer.onPickBay = (id) => st.selectBay(id)
+    viewer.onMeasure = (m, n) => {
+      measureText = m ? `Distância ${fmt(m.dist, 2)} mm · X ${fmt(m.dx, 2)} · Y (profundidade) ${fmt(m.dy, 2)} · Z (altura) ${fmt(m.dz, 2)}. Clique de novo para medir outra.` : n === 1 ? 'Agora clique no segundo ponto.' : 'Medir: clique no primeiro ponto do modelo (ele gruda nos cantos próximos).'
+      measureChip.textContent = measureText
+    }
   } catch (e) {
     console.error(e)
     glHost.append(h('div', { class: 'empty' }, h('b', null, 'Visualização 3D indisponível'), h('p', null, 'O navegador não conseguiu iniciar o WebGL. As demais abas continuam funcionando.')))
@@ -62,6 +68,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
   bFolgas.title = 'Contorna cada vão em verde, amarelo ou vermelho conforme a folga da gaveta e escreve as folgas: lateral | topo | fundo'
   const bMont = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ montagem: st.view.montagem === null ? 1 : null }) }, 'Montagem')
   bMont.title = 'Mostra a montagem passo a passo: as peças aparecem na ordem em que se encaixam'
+  const bMedir = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ medir: !st.view.medir }) }, 'Medir')
+  bMedir.title = 'Clique em dois pontos do modelo para medir a distância'
   const bDiff = toggle('Alterações', 'diff')
   bDiff.title = 'Destaca em laranja o que mudou na última alteração (também pisca sozinho por alguns segundos)'
   const bCorte = toggle('Corte', 'corte')
@@ -75,7 +83,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
       if (!visPanel.hidden) paintVis()
     },
   }, 'Peças')
-  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bMont, bDiff, bCorte, bFrame)
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bMont, bMedir, bDiff, bCorte, bFrame)
   const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': 'Peça selecionada' })
   const montBar = h('div', { class: 'mont-bar', hidden: true })
   const clearChip = h('div', { class: 'clear-chip', hidden: true, role: 'status' })
@@ -103,7 +111,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, montBar, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
+  pane3d.append(toggles, montBar, measureChip, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -307,6 +315,11 @@ export function mountApp(root: HTMLElement, st: Store): void {
     bFolgas.setAttribute('aria-pressed', String(v.folgas))
     clearChip.hidden = !v.folgas || v.tab !== '3d'
     bMont.setAttribute('aria-pressed', String(v.montagem !== null))
+    bMedir.setAttribute('aria-pressed', String(v.medir))
+    viewer?.setMeasuring(v.medir && is3)
+    measureChip.hidden = !v.medir || !is3
+    if (!v.medir) measureText = ''
+    if (v.medir && !measureText) measureChip.textContent = 'Medir: clique no primeiro ponto do modelo (ele gruda nos cantos próximos).'
     paintMont()
     const fb = st.focusBay()
     focusChip.hidden = !fb || v.tab !== '3d'
