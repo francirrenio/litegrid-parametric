@@ -14,7 +14,7 @@ export const REINFORCEMENTS: Array<[FaceFill['reinforcement'], string]> = [
 ]
 
 /** Controls of a FaceFill; `mk(key)` returns the model of that field (project defaults, skin or per-drawer override). */
-export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 'skin' | 'drawer'): Child[] {
+export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 'skin' | 'drawer', smallest?: Model<never>): Child[] {
   const m = <T,>(k: keyof FaceFill) => mk(k) as unknown as Model<T>
   const fill = m<FaceFill['fill']>('fill')
   const cur = fill.get()
@@ -49,6 +49,16 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
           'Percentage of the wall that becomes holes. 30–50% is a good balance; more open uses less material but weakens the wall and lets small items through.',
         ),
       }),
+      ...(smallest ? [
+        numField(smallest as unknown as Model<number>, tr('Menor item guardado', 'Smallest stored item'), {
+          min: 1, max: 100, unit: 'mm', slider: true, sliderMax: 60,
+          hint: tr('Limita o tamanho dos furos das paredes vazadas.', 'Limits the size of the holes in perforated walls.'),
+          tip: tr(
+            'Tamanho do menor objeto que não pode cair pelos furos. Ex.: 5 mm para parafusos pequenos, 20 mm para peças maiores. Valores menores fazem furos menores e mais paredes fechadas.',
+            'Size of the smallest object that must not fall through the holes. E.g. 5 mm for small screws, 20 mm for larger items. Smaller values mean smaller holes and more solid walls.',
+          ),
+        }),
+      ] : []),
       numField(m<number>('solidUpTo'), tr('Fechada até a altura', 'Solid up to height'), {
         min: 0, max: 500, unit: 'mm', slider: true, sliderMax: 120,
         tip: tr(

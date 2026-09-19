@@ -96,14 +96,6 @@ export function projetoTab(st: Store): TabView {
           'How much material to put into the structure. Balanced suits most; Minimum saves filament and time; Reinforced is for heavy loads or hard use.',
         ),
       }),
-      numField(pm<number>('smallestItem'), tr('Menor item guardado', 'Smallest stored item'), {
-        min: 1, max: 100, unit: 'mm', slider: true, sliderMax: 60,
-        hint: tr('Limita o tamanho dos furos das paredes vazadas.', 'Limits the size of the holes in perforated walls.'),
-        tip: tr(
-          'Tamanho do menor objeto que não pode cair pelos furos. Ex.: 5 mm para parafusos pequenos, 20 mm para peças maiores. Valores menores fazem furos menores e mais paredes fechadas.',
-          'Size of the smallest object that must not fall through the holes. E.g. 5 mm for small screws, 20 mm for larger items. Smaller values mean smaller holes and more solid walls.',
-        ),
-      }),
     ),
   )
   return { el, refresh }

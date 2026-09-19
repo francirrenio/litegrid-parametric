@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.2',
+    date: '2026-09-19',
+    pt: ['"Menor item guardado" saiu da aba Projeto e aparece junto do preenchimento, só quando a parede é Vazada.'],
+    en: ['"Smallest stored item" moved out of the Project tab and now sits with the fill options, only when the wall is Perforated.'],
+  },
+  {
     version: '0.2.1',
     date: '2026-09-19',
     pt: ['3MF do Orca Slicer agora abre com uma placa por mesa: o arquivo leva um perfil LiteGrid (mesa, bico, camada, perímetros, sem preenchimento e sem suporte).'],

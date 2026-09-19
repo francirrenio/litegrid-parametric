@@ -60,7 +60,7 @@ export function gabineteTab(st: Store): TabView {
     ]
     if (s.enabled) {
       body.push(
-        ...(faceFillControls((k) => pathModel(st, `${base}.${k}`) as never, 'skin') as HTMLElement[]),
+        ...(faceFillControls((k) => pathModel(st, `${base}.${k}`) as never, 'skin', pathModel(st, 'smallestItem') as never) as HTMLElement[]),
         selectField<SkinAttach>(pm(`${base}.attach`), tr('Fixação da skin', 'Skin attachment'), [
           ['tabs', tr('Abas', 'Tabs')], ['clips', tr('Clipes', 'Clips')], ['screws', tr('Parafusos', 'Screws')], ['glue', tr('Cola', 'Glue')],
         ], {
