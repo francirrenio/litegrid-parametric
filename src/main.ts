@@ -1,6 +1,7 @@
 import './ui/styles.css'
 import { mountApp } from './ui/app'
 import { toast } from './ui/dom'
+import { maybeWelcome } from './ui/help'
 import { projectFromHash } from './ui/share'
 import { Store } from './ui/state'
 
@@ -8,6 +9,7 @@ const root = document.getElementById('app')
 if (root) {
   const store = new Store()
   mountApp(root, store)
+  maybeWelcome()
   projectFromHash(location.hash)
     .then((p) => {
       if (!p) return

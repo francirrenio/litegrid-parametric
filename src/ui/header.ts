@@ -4,6 +4,7 @@ import { createExportMenu } from './export-menu'
 import { slug } from '../export'
 import { exportProjectText, importProjectText } from './storage'
 import { shareUrl } from './share'
+import { openHelp } from './help'
 import type { Store } from './state'
 
 export function createHeader(st: Store): HTMLElement {
@@ -108,6 +109,7 @@ export function createHeader(st: Store): HTMLElement {
     }
   })
 
+  const helpBtn = h('button', { type: 'button', class: 'btn', title: 'Como usar o LiteGrid', onClick: () => openHelp() }, h('span', { class: 'help-q', 'aria-hidden': 'true' }, '?'), h('span', { class: 'hide-sm' }, 'Ajuda'))
   const themeBtn = h('button', { type: 'button', class: 'btn icon-only', title: 'Alternar tema claro e escuro', 'aria-label': 'Alternar tema', onClick: () => st.setTheme(st.theme === 'dark' ? 'light' : 'dark') })
   const paintTheme = () => {
     themeBtn.textContent = ''
@@ -125,6 +127,6 @@ export function createHeader(st: Store): HTMLElement {
       h('div', { class: 'logo', 'aria-hidden': 'true' }, icon('gabinete', 22)),
       h('div', { class: 'brand-text' }, h('div', { class: 'eyebrow mono' }, 'LiteGrid Parametric · mm'), name),
     ),
-    h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, share, file, themeBtn, createExportMenu(st)),
+    h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, share, file, helpBtn, themeBtn, createExportMenu(st)),
   )
 }
