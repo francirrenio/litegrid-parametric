@@ -323,3 +323,9 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .vp-row .ov-slider { display: flex; flex-direction: row; align-items: center; gap: 8px; flex: 0 1 230px; min-width: 150px; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--muted-2); }
 .vp-row .ov-slider span { white-space: nowrap; margin: 0; display: inline; }
 .vp-row .ov-slider input { flex: 1; min-width: 70px; }
+
+/* seletor de vista compacto, com abertura e explosão na mesma linha */
+.vp-row .vp-select { width: auto; flex: 0 0 auto; min-width: 116px; max-width: 170px; }
+.vp-row { flex-wrap: nowrap; }
+.vp-row .bbox { margin-left: auto; white-space: nowrap; }
+@media (max-width: 720px) { .vp-row { flex-wrap: wrap; } }
