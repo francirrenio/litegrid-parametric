@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.8',
+    date: '2026-09-19',
+    pt: ['Barra da vista 3D reorganizada: ferramentas com ícone à esquerda (Medir, Corte, Montagem, Folgas), menu Exibir (aramado, cotas, grade, alterações), Peças e Enquadrar no topo.', 'Medir sai com Esc.'],
+    en: ['3D view bar reorganised: icon tools on the left (Measure, Section, Assembly, Clearances), a Display menu (wireframe, dimensions, grid, changes), Parts and Frame on top.', 'Measure exits with Esc.'],
+  },
+  {
     version: '0.2.7',
     date: '2026-09-19',
     pt: ['"Limpar exceções deste nível" agora remove os valores próprios das filas e gavetas de dentro, e todas passam a seguir o nível selecionado. O botão antigo virou "Voltar a herdar tudo".'],

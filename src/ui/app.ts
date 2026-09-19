@@ -5,7 +5,7 @@ import { computeClearances, summarize } from './clearance'
 import { assemblySteps } from './assembly'
 import { createHeader } from './header'
 import type { PartGroup } from '../model/part'
-import { fmt, h, toast } from './dom'
+import { fmt, h, icon, toast } from './dom'
 import { createPlatesView } from './plates-view'
 import { createSidebar } from './sidebar'
 import { severityOf, tabOfWarning, type Store, type ViewTab } from './state'
@@ -63,33 +63,55 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
 
   /* 3D overlay controls (built once, toggled by view state) */
-  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'folgas' | 'diff' | 'corte') => {
-    const b = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ [key]: !st.view[key] }) }, label)
-    return b
-  }
-  const bWire = toggle('Wireframe', 'wire')
-  const bCotas = toggle(tr('Cotas', 'Dimensions'), 'cotas')
-  const bGrid = toggle(tr('Grade', 'Grid'), 'grid')
-  const bFolgas = toggle(tr('Folgas', 'Clearances'), 'folgas')
-  bFolgas.title = tr('Contorna cada vão em verde, amarelo ou vermelho conforme a folga da gaveta e escreve as folgas: lateral | topo | fundo', 'Outlines each bay in green, yellow or red according to the drawer clearance and prints the clearances: side | top | back')
-  const bMont = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ montagem: st.view.montagem === null ? 1 : null }) }, tr('Montagem', 'Assembly'))
-  bMont.title = tr('Mostra a montagem passo a passo: as peças aparecem na ordem em que se encaixam', 'Shows the assembly step by step: parts appear in the order they fit together')
-  const bMedir = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ medir: !st.view.medir }) }, tr('Medir', 'Measure'))
-  bMedir.title = tr('Clique em dois pontos do modelo para medir a distância', 'Click two points on the model to measure the distance')
-  const bDiff = toggle(tr('Alterações', 'Changes'), 'diff')
+  const dispRow = (label: string, key: 'wire' | 'cotas' | 'grid' | 'diff') =>
+    h('button', { type: 'button', class: 'disp-row', role: 'menuitemcheckbox', onClick: () => st.setView({ [key]: !st.view[key] }) }, h('span', { class: 'disp-box', 'aria-hidden': 'true' }), label)
+  const tool = (iconName: string, label: string, hint: string, onClick: () => void) =>
+    h('button', { type: 'button', class: 'tool-btn', 'aria-pressed': 'false', 'aria-label': label, title: label + ': ' + hint, onClick }, icon(iconName, 20), h('span', { class: 'tool-label' }, label))
+  const bWire = dispRow(tr('Aramado (wireframe)', 'Wireframe'), 'wire')
+  const bCotas = dispRow(tr('Cotas (medidas)', 'Dimensions'), 'cotas')
+  const bGrid = dispRow(tr('Grade no chão', 'Ground grid'), 'grid')
+  const bDiff = dispRow(tr('Destacar alterações', 'Highlight changes'), 'diff')
   bDiff.title = tr('Destaca em laranja o que mudou na última alteração (também pisca sozinho por alguns segundos)', 'Highlights in orange what changed in the last edit (it also flashes on its own for a few seconds)')
-  const bCorte = toggle(tr('Corte', 'Section'), 'corte')
-  const bFrame = h('button', { type: 'button', class: 'chip ov', title: tr('Enquadrar o gabinete (ou dê duplo clique)', 'Frame the cabinet (or double-click)'), onClick: () => viewer?.frame() }, tr('Enquadrar', 'Frame'))
+  const bFolgas = tool('gauge', tr('Folgas', 'Clearances'), tr('contorna cada vão em verde, amarelo ou vermelho conforme a folga da gaveta e escreve as folgas: lateral | topo | fundo', 'outlines each bay in green, yellow or red by the drawer clearance and prints the clearances: side | top | back'), () => st.setView({ folgas: !st.view.folgas }))
+  const bMont = tool('steps', tr('Montagem', 'Assembly'), tr('mostra a montagem passo a passo, na ordem em que as peças se encaixam', 'shows the assembly step by step, in the order the parts fit together'), () => st.setView({ montagem: st.view.montagem === null ? 1 : null }))
+  const bMedir = tool('ruler', tr('Medir', 'Measure'), tr('clique em dois pontos do modelo para medir a distância (Esc sai)', 'click two points on the model to measure the distance (Esc exits)'), () => st.setView({ medir: !st.view.medir }))
+  const bCorte = tool('cut', tr('Corte', 'Section'), tr('corta o modelo por um plano para ver o interior', 'cuts the model with a plane to see the inside'), () => st.setView({ corte: !st.view.corte }))
+  const bFrame = h('button', { type: 'button', class: 'chip ov icon-chip', 'aria-label': tr('Enquadrar', 'Frame'), title: tr('Enquadrar o gabinete (ou dê duplo clique)', 'Frame the cabinet (or double-click)'), onClick: () => viewer?.frame() }, icon('fit', 16))
+  const dispPanel = h('div', { class: 'disp-panel', role: 'menu', hidden: true }, h('div', { class: 'vis-title' }, tr('Exibir', 'Display')), bWire, bCotas, bGrid, bDiff)
+  const bDisp = h('button', {
+    type: 'button', class: 'chip ov icon-chip', 'aria-expanded': 'false', 'aria-haspopup': 'menu', title: tr('O que aparece no desenho', 'What shows in the view'),
+    onClick: () => {
+      dispPanel.hidden = !dispPanel.hidden
+      bDisp.setAttribute('aria-expanded', String(!dispPanel.hidden))
+      if (!dispPanel.hidden) visPanel.hidden = true
+    },
+  }, icon('display', 16), h('span', null, tr('Exibir', 'Display')))
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target as Node
+    if (!dispPanel.hidden && !dispPanel.contains(t) && !bDisp.contains(t)) {
+      dispPanel.hidden = true
+      bDisp.setAttribute('aria-expanded', 'false')
+    }
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && st.view.medir) st.setView({ medir: false })
+  })
   const visPanel = h('div', { class: 'vis-panel', hidden: true })
+  const visLabel = h('span', null, tr('Peças', 'Parts'))
   const bVis = h('button', {
-    type: 'button', class: 'chip ov', 'aria-expanded': 'false', title: tr('Mostrar, esconder e colorir peças', 'Show, hide and colour parts'),
+    type: 'button', class: 'chip ov icon-chip', 'aria-expanded': 'false', title: tr('Mostrar, esconder e colorir peças', 'Show, hide and colour parts'),
     onClick: () => {
       visPanel.hidden = !visPanel.hidden
       bVis.setAttribute('aria-expanded', String(!visPanel.hidden))
-      if (!visPanel.hidden) paintVis()
+      if (!visPanel.hidden) {
+        dispPanel.hidden = true
+        bDisp.setAttribute('aria-expanded', 'false')
+        paintVis()
+      }
     },
-  }, tr('Peças', 'Parts'))
-  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bMont, bMedir, bDiff, bCorte, bFrame)
+  }, icon('eye', 16), visLabel)
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bDisp, bFrame)
+  const tools = h('div', { class: 'ov-tools', role: 'toolbar', 'aria-orientation': 'vertical', 'aria-label': tr('Ferramentas', 'Tools') }, bMedir, bCorte, bMont, bFolgas)
   const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': tr('Peça selecionada', 'Selected part') })
   const montBar = h('div', { class: 'mont-bar', hidden: true })
   const clearChip = h('div', { class: 'clear-chip', hidden: true, role: 'status' })
@@ -119,7 +141,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, montBar, measureChip, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
+  pane3d.append(toggles, tools, dispPanel, montBar, measureChip, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -304,7 +326,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
     const v = st.view
     const sig = JSON.stringify(st.vis)
     const hiddenN = st.vis.isolate || st.vis.isolateBay ? 1 : st.vis.hiddenGroups.length + st.vis.hiddenParts.length
-    bVis.textContent = hiddenN ? `${tr('Peças', 'Parts')} · ${hiddenN} ${hiddenN === 1 ? tr('oculta', 'hidden') : tr('ocultas', 'hidden')}` : tr('Peças', 'Parts')
+    visLabel.textContent = hiddenN ? `${tr('Peças', 'Parts')} · ${hiddenN} ${hiddenN === 1 ? tr('oculta', 'hidden') : tr('ocultas', 'hidden')}` : tr('Peças', 'Parts')
     bVis.classList.toggle('on', hiddenN > 0)
     bVis.setAttribute('aria-pressed', String(hiddenN > 0))
     if (sig !== lastVisSig) {

@@ -290,7 +290,7 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
   .sheet-handle { display: flex; justify-content: center; align-items: center; width: 100%; height: 22px; padding: 0; background: transparent; border: 0; cursor: pointer; flex: none; }
   .grip { width: 40px; height: 4px; border-radius: 999px; background: var(--border-strong); }
   body { padding-bottom: 0; }
-  .ov-toggles { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; left: 12px; }
+  .ov-toggles { flex-wrap: wrap; justify-content: flex-end; left: 12px; }
   #app:has(.side.collapsed) { padding-bottom: 128px; }
 }
 @media (max-width: 520px) {
@@ -419,3 +419,22 @@ tr.dim-row { opacity: .45; }
 .ver-list { margin: 0 0 4px; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.5; }
 
 .hint.live { color: var(--accent); }
+
+/* barra de ferramentas e exibição da vista 3D */
+.ov-toggles { flex-direction: row; gap: 6px; align-items: center; }
+.icon-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; }
+.ov-tools { position: absolute; left: 12px; top: 168px; z-index: 5; display: flex; flex-direction: column; gap: 4px; padding: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+.tool-btn { position: relative; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; background: transparent; border: 1px solid transparent; border-radius: 9px; color: var(--text-2); cursor: pointer; }
+.tool-btn:hover { background: var(--panel-3); color: var(--text); }
+.tool-btn[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+.tool-label { position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); padding: 4px 9px; white-space: nowrap; font-size: 12px; color: var(--text); background: var(--panel-3); border: 1px solid var(--border); border-radius: 7px; opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.tool-btn:hover .tool-label, .tool-btn:focus-visible .tool-label { opacity: 1; }
+.disp-panel { position: absolute; top: 52px; right: 12px; z-index: 6; width: 230px; display: flex; flex-direction: column; gap: 2px; padding: 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.disp-panel[hidden] { display: none; }
+.disp-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; background: transparent; border: 0; border-radius: 8px; color: var(--text-2); font-size: 13px; text-align: left; cursor: pointer; }
+.disp-row:hover { background: var(--panel-3); }
+.disp-box { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 4px; display: grid; place-items: center; flex: none; }
+.disp-row[aria-pressed="true"] .disp-box { background: var(--accent); border-color: var(--accent); }
+.disp-row[aria-pressed="true"] .disp-box::after { content: ""; width: 8px; height: 4px; border-left: 2px solid var(--bg); border-bottom: 2px solid var(--bg); transform: rotate(-45deg) translate(1px, -1px); }
+.vis-panel { top: 52px; right: 12px; }
+.measure-chip { bottom: 64px; left: 12px; }
