@@ -407,4 +407,4 @@ tr.dim-row { opacity: .45; }
 .tip::after { content: attr(data-tip); display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 8px; background: var(--panel-2); color: var(--text-2); font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left; white-space: normal; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); pointer-events: none; }
 .tip:hover::after, .tip:focus::after, .tip:focus-visible::after { display: block; }
 
-.lang-select { height: 32px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line, currentColor); background: var(--surface, transparent); color: inherit; font: inherit; }
+.hdr-actions .lang-select { width: auto; height: 36px; padding: 0 28px 0 12px; border-radius: 10px; border: 1px solid var(--border-3); background-color: var(--panel-2); color: var(--text); font-size: 13px; cursor: pointer; }
