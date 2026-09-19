@@ -1,7 +1,9 @@
 import { plateMeshes, type Plate } from './plates'
 import { esc, meshObject, r } from './threemf'
 import { zipStore } from './zip'
+import { deriveNozzle } from '../core/nozzle'
 import type { Part } from '../model/part'
+import type { ProjectState } from '../model/types'
 
 /** Orca and Bambu place plate k on a grid: columns = ceil(sqrt(n)), stride = bed size * 1.2, rows going toward -Y. */
 export function orcaPlateOrigin(index: number, count: number, bedX: number, bedY: number): [number, number] {
@@ -13,7 +15,44 @@ export function orcaPlateOrigin(index: number, count: number, bedX: number, bedY
  * 3MF in the layout OrcaSlicer/Bambu Studio write themselves: every part is an object (a component wrapping its mesh),
  * placed inside its plate's area, and Metadata/model_settings.config assigns each object to plate 1, 2, 3...
  */
-export function orca3mf(plates: Plate[], parts: Part[], bedX: number, bedY: number, name = 'LiteGrid'): Blob {
+/** Orca only loads the plates of a project that carries settings, so the file brings a small LiteGrid profile (bed, nozzle, layer, walls, no infill, no supports). */
+function projectSettings(project: ProjectState): string {
+  const nz = deriveNozzle(project.nozzle, project.advanced)
+  const w = project.printBed.x
+  const d = project.printBed.y
+  const lw = nz.lineWidth.toFixed(2)
+  const perimeters = Math.max(project.skeleton.perimeters, project.drawerDefaults.perimeters)
+  return JSON.stringify(
+    {
+      name: 'project_settings',
+      from: 'project',
+      print_settings_id: 'LiteGrid',
+      printer_settings_id: 'LiteGrid printer',
+      filament_settings_id: ['LiteGrid filament'],
+      printable_area: ['0x0', w + 'x0', w + 'x' + d, '0x' + d],
+      printable_height: '300',
+      nozzle_diameter: [String(nz.nozzle)],
+      filament_colour: ['#2DD4BF'],
+      filament_type: [project.material],
+      layer_height: nz.layerHeight.toFixed(2),
+      initial_layer_print_height: nz.layerHeight.toFixed(2),
+      line_width: lw,
+      outer_wall_line_width: lw,
+      inner_wall_line_width: lw,
+      wall_loops: String(perimeters),
+      sparse_infill_density: '0%',
+      enable_support: '0',
+      brim_type: 'no_brim',
+    },
+    null,
+    2,
+  )
+}
+
+export function orca3mf(plates: Plate[], parts: Part[], project: ProjectState): Blob {
+  const bedX = project.printBed.x
+  const bedY = project.printBed.y
+  const name = project.name
   const resources: string[] = []
   const build: string[] = []
   const objectCfg: string[] = []
@@ -51,6 +90,7 @@ export function orca3mf(plates: Plate[], parts: Part[], bedX: number, bedY: numb
       { name: '_rels/.rels', data: enc.encode(rels) },
       { name: '3D/3dmodel.model', data: enc.encode(model) },
       { name: 'Metadata/model_settings.config', data: enc.encode(config) },
+      { name: 'Metadata/project_settings.config', data: enc.encode(projectSettings(project)) },
     ],
     'model/3mf',
   )

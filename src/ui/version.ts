@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.1',
+    date: '2026-09-19',
+    pt: ['3MF do Orca Slicer agora abre com uma placa por mesa: o arquivo leva um perfil LiteGrid (mesa, bico, camada, perímetros, sem preenchimento e sem suporte).'],
+    en: ['The Orca Slicer 3MF now opens with one plate per bed: the file carries a LiteGrid profile (bed, nozzle, layer, perimeters, no infill, no supports).'],
+  },
+  {
     version: '0.2.0',
     date: '2026-09-19',
     pt: [

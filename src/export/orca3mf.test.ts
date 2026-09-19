@@ -15,9 +15,11 @@ describe('Orca 3MF', () => {
     const p = defaultProject({ printBed: { x: 180, y: 180 } })
     const r = generate(p)
     const plates = planPlates(r.parts, p.printBed)
-    const text = await orca3mf(plates, r.parts, 180, 180).text()
+    const text = await orca3mf(plates, r.parts, p).text()
     expect(text).toContain('Metadata/model_settings.config')
     expect(text).toContain('OrcaSlicer-')
+    expect(text).toContain('Metadata/project_settings.config')
+    expect(text).toContain('printable_area')
     const nPlates = (text.match(/<plate>/g) ?? []).length
     expect(nPlates).toBe(plates.length)
     const nObjs = plates.reduce((s, x) => s + x.items.length, 0)
