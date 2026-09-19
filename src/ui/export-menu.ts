@@ -45,7 +45,7 @@ export function createExportMenu(st: Store): HTMLElement {
         menuItem(tr('3MF da mesa atual', '3MF of current bed'), guard(tr('3MF da mesa', 'bed 3MF'), () => {
           if (plate) download(plate3mf(plate, r.parts), `${base}-mesa-${n}.3mf`, 'model/3mf')
         }), { disabled: !plate, hint: plate ? tr(`mesa ${n}`, `bed ${n}`) : '' }),
-        menuItem(tr('3MF para Orca Slicer (mesa por mesa)', '3MF for Orca Slicer (bed by bed)'), guard(tr('3MF do Orca', 'Orca 3MF'), () => download(orca3mf(st.plates, r.parts, p), `${base}-orca.3mf`, 'model/3mf')), { disabled: st.plates.length === 0, hint: st.plates.length ? tr(`${st.plates.length} mesas`, `${st.plates.length} beds`) : '' }),
+        menuItem(tr('3MF todas as mesas (Orca)', '3MF all beds (Orca)'), guard(tr('3MF do Orca', 'Orca 3MF'), () => download(orca3mf(st.plates, r.parts, p), `${base}-orca.3mf`, 'model/3mf')), { disabled: st.plates.length === 0, hint: st.plates.length ? tr(`${st.plates.length} mesas`, `${st.plates.length} beds`) : '' }),
         menuItem(tr('3MF com todas as mesas', '3MF with all beds'), guard(tr('3MF de todas as mesas', 'all-beds 3MF'), () => download(allPlates3mf(st.plates, r.parts, p.printBed.x), `${base}-todas-as-mesas.3mf`, 'model/3mf')), { disabled: st.plates.length === 0, hint: st.plates.length ? tr(`${st.plates.length} mesas`, `${st.plates.length} beds`) : '' }),
         menuHeading(tr('Antes de imprimir tudo', 'Before printing everything')),
         menuItem(tr('Peça de teste (STL, uma mesa)', 'Test piece (STL, one bed)'), guard(tr('peça de teste', 'test piece'), () => {
