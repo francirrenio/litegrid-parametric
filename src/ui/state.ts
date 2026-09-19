@@ -5,7 +5,7 @@ import { generate } from '../gen'
 import { defaultProject, PRESETS } from '../model/defaults'
 import type { GenerateResult } from '../model/part'
 import type { ProjectState } from '../model/types'
-import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
+import { GLOBAL_SCOPE, clearBelow, hasValues, pruneEmpty, type Scope } from '../model/resolve'
 import { ALL_VISIBLE, isPartHidden, partFamily, type Visibility } from './appearance'
 import { assemblySteps, rawStepAt } from './assembly'
 import { computeDiff, type DiffItem } from './diff'
@@ -596,6 +596,15 @@ export class Store {
     setPath(this.project, path, undefined)
     pruneEmpty(this.project as unknown as Record<string, unknown>, path)
     this.changed(true)
+  }
+
+  /** Makes every drawer under `scope` follow its values, dropping the rows' and drawers' own overrides. */
+  clearBelow(scope: Scope): number {
+    let n = 0
+    this.mutate((p) => {
+      n = clearBelow(p, scope, this.result.layout.bays)
+    })
+    return n
   }
 
   resetOverride(id: string): void {

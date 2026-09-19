@@ -101,3 +101,49 @@ export function pruneEmpty(root: Record<string, unknown>, path: string): void {
     } else break
   }
 }
+
+interface BayRef {
+  id: string
+  section: number
+  row: number
+}
+
+/** Paths of the patches set below a scope (rows and drawers under a section, drawers under a row, everything under the defaults). */
+function belowPaths(p: ProjectState, scope: Scope, bays: BayRef[]): string[] {
+  const out: string[] = []
+  if (scope.level === 'global') {
+    p.sections.forEach((s, i) => {
+      if (hasValues(s.drawer)) out.push(`sections.${i}.drawer`)
+      s.rows.forEach((r, j) => hasValues(r.drawer) && out.push(`sections.${i}.rows.${j}.drawer`))
+    })
+    for (const b of bays) if (hasValues(p.overrides[b.id])) out.push(`overrides.${b.id}`)
+  } else if (scope.level === 'section') {
+    const i = scope.section ?? 0
+    p.sections[i]?.rows.forEach((r, j) => hasValues(r.drawer) && out.push(`sections.${i}.rows.${j}.drawer`))
+    for (const b of bays) if (b.section === i + 1 && hasValues(p.overrides[b.id])) out.push(`overrides.${b.id}`)
+  } else if (scope.level === 'row') {
+    for (const b of bays) if (b.section === (scope.section ?? 0) + 1 && b.row === (scope.row ?? 0) + 1 && hasValues(p.overrides[b.id])) out.push(`overrides.${b.id}`)
+  }
+  return out
+}
+
+/** How many more specific patches (rows, drawers) would stop this level's drawers from following its values. */
+export function countBelow(p: ProjectState, scope: Scope, bays: BayRef[]): number {
+  return belowPaths(p, scope, bays).length
+}
+
+/** Drops every more specific patch under the scope, so all its drawers follow the scope's values. Returns how many were removed. */
+export function clearBelow(p: ProjectState, scope: Scope, bays: BayRef[]): number {
+  const paths = belowPaths(p, scope, bays)
+  for (const path of paths) {
+    setIn(p as unknown as Record<string, unknown>, path)
+  }
+  return paths.length
+}
+
+function setIn(root: Record<string, unknown>, path: string): void {
+  const keys = path.split('.')
+  let cur: unknown = root
+  for (let i = 0; i < keys.length - 1; i++) cur = (cur as Record<string, unknown>)?.[keys[i]!]
+  if (cur && typeof cur === 'object') delete (cur as Record<string, unknown>)[keys[keys.length - 1]!]
+}

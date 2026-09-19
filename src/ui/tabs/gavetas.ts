@@ -1,4 +1,4 @@
-import { LEVEL_LABEL, hasValues, patchAt, resolveAt, scopeRoot, sourceOf, getIn, type Scope } from '../../model/resolve'
+import { LEVEL_LABEL, countBelow, hasValues, patchAt, resolveAt, scopeRoot, sourceOf, getIn, type Scope } from '../../model/resolve'
 import type { PartGroup } from '../../model/part'
 import type { DrawerFront, DrawerHandle } from '../../model/types'
 import { tr } from '../../i18n'
@@ -97,12 +97,16 @@ export function gavetasTab(st: Store): TabView {
 
   const patch = patchAt(st.project, scope)
   const own = !isGlobal && hasValues(patch)
+  const below = countBelow(st.project, scope, st.result.layout.bays)
 
   const banner = h(
     'div',
     { class: `banner${isGlobal ? '' : ' accent'}` },
     h('span', null, tr('Editando: ', 'Editing: '), h('b', null, scopeTitle(st))),
-    own ? btn(tr('Limpar exceções deste nível', 'Clear overrides at this level'), () => st.unsetPath(root), { sm: true, icon: 'reset' }) : null,
+    below > 0
+      ? btn(tr(`Limpar exceções deste nível (${below})`, `Clear overrides at this level (${below})`), () => { st.clearBelow(scope); st.emit('selection') }, { sm: true, icon: 'reset', title: tr('Remove os valores próprios das filas e gavetas daqui, para todas seguirem os valores deste nível.', 'Removes the own values of the rows and drawers in here, so all of them follow this level.') })
+      : null,
+    own ? btn(tr('Voltar a herdar tudo', 'Inherit everything again'), () => st.unsetPath(root), { sm: true, icon: 'reset', title: tr('Remove os valores definidos só neste nível; ele volta a seguir o nível acima.', 'Removes the values set only at this level; it goes back to following the level above.') }) : null,
     scope.level === 'bay' && scope.bay && hiddenInBay(st.result, st.vis, scope.bay).length > 0
       ? btn(tr('Mostrar esta gaveta', 'Show this drawer'), () => {
           for (const e of hiddenInBay(st.result, st.vis, scope.bay!)) {

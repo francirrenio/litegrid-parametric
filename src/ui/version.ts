@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.7',
+    date: '2026-09-19',
+    pt: ['"Limpar exceções deste nível" agora remove os valores próprios das filas e gavetas de dentro, e todas passam a seguir o nível selecionado. O botão antigo virou "Voltar a herdar tudo".'],
+    en: ['"Clear overrides at this level" now removes the own values of the rows and drawers inside, so all of them follow the selected level. The old button became "Inherit everything again".'],
+  },
+  {
     version: '0.2.6',
     date: '2026-09-19',
     pt: ['Aba Gavetas reorganizada: Laterais, Fundo, Frente e Interior e bordas, cada uma só com o que vale para ela.', 'Fundo: escolha de espessura (automática, normal ou reforçada) no lugar do reforço das paredes; Moldura só aparece quando há furos.'],
