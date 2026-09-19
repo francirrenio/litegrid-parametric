@@ -1,24 +1,29 @@
 import type { Warning } from '../core/layout'
-import { planPlates, type Plate } from '../export'
+import { planPlates, plateKey, type Plate, type PlateOverride } from '../export'
 import { generate } from '../gen'
 import { defaultProject, PRESETS } from '../model/defaults'
 import type { GenerateResult } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
 import { ALL_VISIBLE, isPartHidden, partFamily, type Visibility } from './appearance'
+import { computeDiff, type DiffItem } from './diff'
 import { outerBox, type Box } from './bounds'
 import type { PartGroup } from '../model/part'
 import { newId, ProjectRepo, type ProjectMeta } from './storage'
 
 export type ViewTab = '3d' | '2d' | 'mesa' | 'explodida'
 export type SideTab = 'projeto' | 'layout' | 'gabinete' | 'gavetas' | 'fixacao' | 'avancado' | 'pecas'
-export type Topic = 'result' | 'rebuild' | 'view' | 'selection' | 'busy' | 'projects' | 'tab' | 'theme'
+export type Topic = 'result' | 'rebuild' | 'view' | 'selection' | 'busy' | 'projects' | 'tab' | 'theme' | 'history'
 
 export interface ViewState {
   tab: ViewTab
   wire: boolean
   cotas: boolean
   grid: boolean
+  /** Keep the last change highlighted (it always flashes for a few seconds). */
+  diff: boolean
+  /** While editing drawer settings, show only one drawer of the edited group. */
+  autoFocus: boolean
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -96,18 +101,27 @@ export class Store {
   projectId: string
   result: GenerateResult
   plates: Plate[] = []
+  /** Manual arrangement of the print beds, keyed `${partId}#${copy}`. Dropped when a part changes size. */
+  plateLayout: Record<string, PlateOverride> = {}
+  private layoutSig = new Map<string, string>()
   bounds: Box
   busy = false
   sel: Selection = { bay: null, section: null }
   scope: Scope = { ...GLOBAL_SCOPE }
   vis: Visibility = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
+  lastDiff: DiffItem[] = []
+  diffUntil = 0
+  private skipDiff = true
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, grid: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, diff: false, autoFocus: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()
+  private hist: string[] = []
+  private histPos = -1
+  private histTimer: ReturnType<typeof setTimeout> | undefined
   private genTimer: ReturnType<typeof setTimeout> | undefined
   private saveTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -120,6 +134,7 @@ export class Store {
     this.bounds = { lo: [0, 0, 0], hi: [this.project.width, this.project.height, this.project.depth] }
     this.theme = repo.getTheme() ?? 'dark'
     this.restoreUi()
+    this.resetHistory()
     this.generateNow()
   }
 
@@ -162,7 +177,67 @@ export class Store {
   changed(rebuild: boolean): void {
     this.scheduleSave()
     this.scheduleGenerate()
+    this.scheduleHistory()
     if (rebuild) this.emit('rebuild')
+  }
+
+  /* undo and redo: snapshots of the whole project, one per burst of edits (a slider drag is one step) */
+
+  private snapshot(): string {
+    return JSON.stringify(this.project)
+  }
+
+  private resetHistory(): void {
+    clearTimeout(this.histTimer)
+    this.hist = [this.snapshot()]
+    this.histPos = 0
+    this.emit('history')
+  }
+
+  private scheduleHistory(): void {
+    clearTimeout(this.histTimer)
+    this.histTimer = setTimeout(() => this.commitHistory(), 500)
+  }
+
+  private commitHistory(): void {
+    clearTimeout(this.histTimer)
+    const snap = this.snapshot()
+    if (snap === this.hist[this.histPos]) return
+    this.hist = this.hist.slice(0, this.histPos + 1)
+    this.hist.push(snap)
+    if (this.hist.length > 100) this.hist.shift()
+    this.histPos = this.hist.length - 1
+    this.emit('history')
+  }
+
+  get canUndo(): boolean {
+    return this.histPos > 0 || this.snapshot() !== this.hist[this.histPos]
+  }
+
+  get canRedo(): boolean {
+    return this.histPos < this.hist.length - 1
+  }
+
+  private restore(snap: string): void {
+    this.project = JSON.parse(snap) as ProjectState
+    this.saveNow()
+    this.generateNow()
+    this.emit('rebuild')
+    this.emit('history')
+  }
+
+  undo(): void {
+    this.commitHistory()
+    if (this.histPos <= 0) return
+    this.histPos--
+    this.restore(this.hist[this.histPos]!)
+  }
+
+  redo(): void {
+    this.commitHistory()
+    if (this.histPos >= this.hist.length - 1) return
+    this.histPos++
+    this.restore(this.hist[this.histPos]!)
   }
 
   private scheduleSave(): void {
@@ -198,17 +273,20 @@ export class Store {
     } catch (e) {
       result = fallbackResult(this.project, e)
     }
+    const prevParts = this.result.parts
     this.result = result
-    const bed = {
-      x: this.project.printBed.x > 0 ? this.project.printBed.x : 220,
-      y: this.project.printBed.y > 0 ? this.project.printBed.y : 220,
+    if (this.skipDiff) {
+      this.lastDiff = []
+      this.skipDiff = false
+    } else {
+      try {
+        this.lastDiff = computeDiff(prevParts, result.parts)
+      } catch {
+        this.lastDiff = []
+      }
+      if (this.lastDiff.length > 0) this.diffUntil = Date.now() + 3000
     }
-    try {
-      this.plates = planPlates(result.parts, bed)
-    } catch {
-      this.plates = []
-    }
-    this.view.plate = Math.min(this.view.plate, Math.max(0, this.plates.length - 1))
+    this.replanPlates()
     try {
       this.bounds = outerBox(result, this.project)
     } catch {
@@ -225,6 +303,69 @@ export class Store {
     this.emit('busy')
     this.emit('result')
     if (selChanged) this.emit('selection')
+  }
+
+  /* print bed arrangement */
+
+  private static sizeSig(p: { size: number[] }): string {
+    return p.size.map((n) => n.toFixed(2)).join('x')
+  }
+
+  /** Plans the beds with the manual arrangement; overrides of parts that vanished or changed size are dropped. */
+  private replanPlates(): void {
+    const parts = this.result.parts
+    const sig = new Map(parts.map((p) => [p.id, { n: p.instances.length, s: Store.sizeSig(p) }]))
+    for (const key of Object.keys(this.plateLayout)) {
+      const i = key.lastIndexOf('#')
+      const info = sig.get(key.slice(0, i))
+      const copy = Number(key.slice(i + 1))
+      if (!info || !(copy >= 1 && copy <= info.n) || this.layoutSig.get(key) !== info.s) {
+        delete this.plateLayout[key]
+        this.layoutSig.delete(key)
+      }
+    }
+    const bed = {
+      x: this.project.printBed.x > 0 ? this.project.printBed.x : 220,
+      y: this.project.printBed.y > 0 ? this.project.printBed.y : 220,
+    }
+    try {
+      this.plates = planPlates(parts, bed, this.plateLayout)
+    } catch {
+      this.plates = []
+    }
+    this.view.plate = Math.min(this.view.plate, Math.max(0, this.plates.length - 1))
+  }
+
+  private rememberLayout(key: string): void {
+    const i = key.lastIndexOf('#')
+    const part = this.result.parts.find((p) => p.id === key.slice(0, i))
+    if (part) this.layoutSig.set(key, Store.sizeSig(part))
+  }
+
+  /** Changes one copy's position, turn or bed. The first edit freezes the current arrangement so nothing else jumps. */
+  setPlateItem(key: string, patch: Partial<PlateOverride>): void {
+    if (Object.keys(this.plateLayout).length === 0) {
+      for (const pl of this.plates) {
+        for (const it of pl.items) {
+          const k = plateKey(it.partId, it.copy)
+          this.plateLayout[k] = { x: it.x, y: it.y, rotated: !!it.rotated, plate: pl.index }
+          this.rememberLayout(k)
+        }
+      }
+    }
+    const cur = this.plateLayout[key]
+    if (!cur) return
+    this.plateLayout[key] = { ...cur, ...patch }
+    this.rememberLayout(key)
+    this.replanPlates()
+    this.emit('result')
+  }
+
+  resetPlateLayout(): void {
+    this.plateLayout = {}
+    this.layoutSig.clear()
+    this.replanPlates()
+    this.emit('result')
   }
 
   /* selection / view */
@@ -353,6 +494,24 @@ export class Store {
     })
   }
 
+  /** The drawer shown alone while the user edits drawer settings, or null when everything is shown. */
+  focusBay(): string | null {
+    if (!this.view.autoFocus || this.sideTab !== 'gavetas' || this.view.tab !== '3d') return null
+    if (this.vis.isolate || this.vis.isolateBay) return null
+    const bays = this.result.layout.bays
+    const s = this.scope
+    const first = (f: (b: (typeof bays)[number]) => boolean) => bays.find(f)?.id ?? null
+    if (s.level === 'bay') return s.bay
+    if (s.level === 'row') return first((b) => b.section === (s.section ?? 0) + 1 && b.row === (s.row ?? 0) + 1)
+    if (s.level === 'section') return first((b) => b.section === (s.section ?? 0) + 1)
+    return bays[0]?.id ?? null
+  }
+
+  effectiveVis(): Visibility {
+    const b = this.focusBay()
+    return b ? { ...this.vis, isolateBay: b } : this.vis
+  }
+
   /* what is shown and how it is coloured (view only; colours are saved with the project) */
 
   private visChanged(): void {
@@ -445,6 +604,10 @@ export class Store {
     this.sel = { bay: null, section: null }
     this.vis = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
     this.view.plate = 0
+    this.plateLayout = {}
+    this.layoutSig.clear()
+    this.resetHistory()
+    this.skipDiff = true
     this.repo.save(id, project)
     this.repo.setCurrentId(id)
     this.generateNow()

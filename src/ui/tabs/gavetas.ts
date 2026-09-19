@@ -124,10 +124,12 @@ export function gavetasTab(st: Store): TabView {
   const face = (title: string, sub: 'sides' | 'floor') =>
     group(title, ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer') as HTMLElement[]))
 
+  const focusToggle = h('label', { class: 'vis-check focus-toggle' }, h('input', { type: 'checkbox', checked: st.view.autoFocus, 'aria-label': 'Mostrar só uma gaveta ao editar', onChange: (e: Event) => st.setView({ autoFocus: (e.target as HTMLInputElement).checked }) }), h('span', null, 'Mostrar só uma gaveta no 3D enquanto edito'))
+
   const el = h(
     'div',
     { class: 'tab-body' },
-    group('Onde aplicar', scopeTree(st)),
+    group('Onde aplicar', scopeTree(st), focusToggle),
     banner,
     group('Estrutura', numField(mk<number>('perimeters'), 'Perímetros das paredes', { min: 1, max: 6, slider: true })),
     face('Laterais e traseira', 'sides'),

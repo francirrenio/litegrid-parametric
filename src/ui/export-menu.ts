@@ -43,7 +43,7 @@ export function createExportMenu(st: Store): HTMLElement {
           if (plate) download(plate3mf(plate, r.parts), `${base}-mesa-${n}.3mf`, 'model/3mf')
         }), { disabled: !plate, hint: plate ? `mesa ${n}` : '' }),
         menuHeading('Projeto'),
-        menuItem('ZIP completo', guard('ZIP completo', () => download(projectZip(r, p), `${base}.zip`, 'application/zip'))),
+        menuItem('ZIP completo', guard('ZIP completo', () => download(projectZip(r, p, st.plateLayout), `${base}.zip`, 'application/zip'))),
         menuItem('layout_manifest.json', guard('manifesto', () => download(manifestJson(r), 'layout_manifest.json', 'application/json'))),
         menuItem('Perfil de fatiador (.txt)', guard('perfil', () => download(slicerProfileText(p, r.parts), `${base}-perfil-fatiador.txt`))),
         menuItem('Guia de montagem (.md)', guard('guia', () => download(assemblyGuide(r, p), `${base}-guia-montagem.md`, 'text/markdown'))),

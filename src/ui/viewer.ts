@@ -5,6 +5,7 @@ import type { GenerateResult, Part, PartGroup } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { ALL_VISIBLE, isInstanceVisible, partColor, type Colors, type Visibility } from './appearance'
 import { instanceBox, partBox } from './bounds'
+import type { DiffItem } from './diff'
 import { fmt } from './dom'
 
 export interface ViewOptions {
@@ -69,6 +70,9 @@ export class Viewer {
     vis: { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }, colors: { groups: {}, parts: {} },
   }
   private partInfo = new Map<string, { mat: THREE.MeshStandardMaterial; part: Part }>()
+  private diffItems: DiffItem[] = []
+  private diffNodes: THREE.Mesh[] = []
+  private diffOn = false
   private grid: THREE.GridHelper | null = null
   private cubeScene = new THREE.Scene()
   private cubeCam = new THREE.PerspectiveCamera(32, 1, 0.1, 20)
@@ -170,6 +174,7 @@ export class Viewer {
     this.materials = []
     this.edgeMats = []
     this.partInfo.clear()
+    this.diffNodes = []
     this.opts.colors = project.colors ?? { groups: {}, parts: {} }
     this.bays = result.layout.bays
     const W = project.width, H = project.height, D = project.depth
@@ -244,6 +249,38 @@ export class Viewer {
     this.buildDims()
     this.applyOptions()
     if (!this.framed) this.frame()
+    this.requestRender()
+  }
+
+  /** Highlights, in amber, the triangles that changed in the last generation. */
+  setDiff(items: DiffItem[]): void {
+    this.diffItems = items
+    for (const m of this.diffNodes) {
+      m.parent?.remove(m)
+      m.geometry.dispose()
+    }
+    this.diffNodes = []
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffb020, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    })
+    for (const item of items) {
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(item.tris), 3))
+      for (const inst of this.insts) {
+        if (inst.partId !== item.partId) continue
+        const mesh = new THREE.Mesh(geo, mat)
+        mesh.visible = this.diffOn
+        inst.node.add(mesh)
+        this.diffNodes.push(mesh)
+      }
+    }
+    this.requestRender()
+  }
+
+  setDiffVisible(on: boolean): void {
+    this.diffOn = on
+    for (const m of this.diffNodes) m.visible = on
     this.requestRender()
   }
 

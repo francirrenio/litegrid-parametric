@@ -61,6 +61,29 @@ export function createHeader(st: Store): HTMLElement {
   const save = h('button', { type: 'button', class: 'btn', title: 'Baixar o projeto como arquivo JSON', onClick: () => download(exportProjectText(st.project), `${slug(st.project.name)}.json`, 'application/json') }, icon('save', 16), h('span', { class: 'hide-sm' }, 'Salvar arquivo'))
   const open = h('button', { type: 'button', class: 'btn', title: 'Abrir um projeto salvo em JSON', onClick: () => file.click() }, icon('open', 16), h('span', { class: 'hide-sm' }, 'Abrir arquivo'))
 
+  const undoBtn = h('button', { type: 'button', class: 'btn icon-only', title: 'Desfazer (Ctrl+Z)', 'aria-label': 'Desfazer', onClick: () => st.undo() }, icon('undo', 17))
+  const redoBtn = h('button', { type: 'button', class: 'btn icon-only', title: 'Refazer (Ctrl+Shift+Z)', 'aria-label': 'Refazer', onClick: () => st.redo() }, icon('redo', 17))
+  const paintHistory = () => {
+    undoBtn.disabled = !st.canUndo
+    redoBtn.disabled = !st.canRedo
+  }
+  st.on('history', paintHistory)
+  st.on('rebuild', paintHistory)
+  paintHistory()
+  document.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement | null
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+    if (!(e.ctrlKey || e.metaKey)) return
+    const k = e.key.toLowerCase()
+    if (k === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      st.undo()
+    } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+      e.preventDefault()
+      st.redo()
+    }
+  })
+
   const themeBtn = h('button', { type: 'button', class: 'btn icon-only', title: 'Alternar tema claro e escuro', 'aria-label': 'Alternar tema', onClick: () => st.setTheme(st.theme === 'dark' ? 'light' : 'dark') })
   const paintTheme = () => {
     themeBtn.textContent = ''
@@ -78,6 +101,6 @@ export function createHeader(st: Store): HTMLElement {
       h('div', { class: 'logo', 'aria-hidden': 'true' }, icon('gabinete', 22)),
       h('div', { class: 'brand-text' }, h('div', { class: 'eyebrow mono' }, 'LiteGrid Parametric · mm'), name),
     ),
-    h('div', { class: 'hdr-actions' }, projects, presets, save, open, file, themeBtn, createExportMenu(st)),
+    h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, file, themeBtn, createExportMenu(st)),
   )
 }

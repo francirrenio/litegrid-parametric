@@ -49,13 +49,15 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
 
   /* 3D overlay controls (built once, toggled by view state) */
-  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'corte') => {
+  const toggle = (label: string, key: 'wire' | 'cotas' | 'grid' | 'diff' | 'corte') => {
     const b = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ [key]: !st.view[key] }) }, label)
     return b
   }
   const bWire = toggle('Wireframe', 'wire')
   const bCotas = toggle('Cotas', 'cotas')
   const bGrid = toggle('Grade', 'grid')
+  const bDiff = toggle('Alterações', 'diff')
+  bDiff.title = 'Destaca em laranja o que mudou na última alteração (também pisca sozinho por alguns segundos)'
   const bCorte = toggle('Corte', 'corte')
   const bFrame = h('button', { type: 'button', class: 'chip ov', title: 'Enquadrar o gabinete (ou dê duplo clique)', onClick: () => viewer?.frame() }, 'Enquadrar')
   const visPanel = h('div', { class: 'vis-panel', hidden: true })
@@ -67,8 +69,10 @@ export function mountApp(root: HTMLElement, st: Store): void {
       if (!visPanel.hidden) paintVis()
     },
   }, 'Peças')
-  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bCorte, bFrame)
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bDiff, bCorte, bFrame)
   const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': 'Peça selecionada' })
+  const focusText = h('span', null)
+  const focusChip = h('div', { class: 'focus-chip', hidden: true, role: 'status' }, focusText, h('button', { type: 'button', class: 'btn sm', onClick: () => st.setView({ autoFocus: false }) }, 'Ver tudo'))
 
   const slider = (label: string, get: () => number, set: (v: number) => void, max = 100, step = 1) => {
     const input = h('input', { type: 'range', min: 0, max, step, value: get(), 'aria-label': label })
@@ -91,7 +95,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, visPanel, partPop, ovBottom, emptyMsg)
+  pane3d.append(toggles, focusChip, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -160,7 +164,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
       abertura: v.tab === '3d' ? v.abertura : 0,
       explosao: v.tab === 'explodida' ? v.explosao : 0,
       selectedBay: st.sel.bay,
-      vis: st.vis,
+      vis: st.effectiveVis(),
       colors: st.project.colors ?? { groups: {}, parts: {} },
     }
   }
@@ -262,6 +266,14 @@ export function mountApp(root: HTMLElement, st: Store): void {
     if (e.key === 'Escape') hidePop()
   })
 
+  let diffTimer: ReturnType<typeof setTimeout> | undefined
+  const paintDiff = () => {
+    const flashing = Date.now() < st.diffUntil
+    viewer?.setDiffVisible(st.view.diff || flashing)
+    clearTimeout(diffTimer)
+    if (flashing) diffTimer = setTimeout(() => viewer?.setDiffVisible(st.view.diff || Date.now() < st.diffUntil), st.diffUntil - Date.now() + 60)
+  }
+
   let lastTab: ViewTab | null = null
   let lastVisSig = ''
   const paintView = () => {
@@ -283,6 +295,11 @@ export function mountApp(root: HTMLElement, st: Store): void {
     bWire.setAttribute('aria-pressed', String(v.wire))
     bCotas.setAttribute('aria-pressed', String(v.cotas))
     bGrid.setAttribute('aria-pressed', String(v.grid))
+    bDiff.setAttribute('aria-pressed', String(v.diff))
+    const fb = st.focusBay()
+    focusChip.hidden = !fb || v.tab !== '3d'
+    focusText.textContent = fb ? `Mostrando só a gaveta ${fb} enquanto você edita.` : ''
+    paintDiff()
     bCorte.setAttribute('aria-pressed', String(v.corte))
     sOpen.wrap.hidden = v.tab !== '3d'
     sExp.wrap.hidden = v.tab !== 'explodida'
@@ -300,6 +317,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
 
   const paintResult = () => {
     viewer?.setResult(st.result, st.project)
+    viewer?.setDiff(st.lastDiff)
+    paintDiff()
     viewer?.setOptions(viewOptions())
     emptyMsg.hidden = st.result.parts.length > 0
     v2.refresh()
@@ -311,6 +330,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
 
   st.on('view', paintView)
+  st.on('tab', paintView)
+  st.on('selection', paintView)
   st.on('result', paintResult)
   st.on('selection', () => {
     viewer?.setOptions(viewOptions())

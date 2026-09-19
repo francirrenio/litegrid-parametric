@@ -24,6 +24,17 @@ export interface Plate {
 
 const GAP = 4
 
+/** Manual placement of one copy: centre relative to the bed centre, quarter turn and target bed (1-based). */
+export interface PlateOverride {
+  x: number
+  y: number
+  rotated?: boolean
+  plate?: number
+}
+export type PlateOverrides = Record<string, PlateOverride>
+
+export const plateKey = (partId: string, copy: number): string => `${partId}#${copy}`
+
 interface Shelf {
   y: number
   h: number
@@ -31,7 +42,7 @@ interface Shelf {
 }
 
 /** Packs every copy of every part onto beds with a simple shelf algorithm (largest first). */
-export function planPlates(parts: Part[], bed: { x: number; y: number }): Plate[] {
+export function planPlates(parts: Part[], bed: { x: number; y: number }, overrides?: PlateOverrides): Plate[] {
   const list: PlateItem[] = []
   for (const part of parts) {
     for (let c = 0; c < part.instances.length; c++) {
@@ -103,7 +114,38 @@ export function planPlates(parts: Part[], bed: { x: number; y: number }): Plate[
       it.y += dy
     }
   }
+  if (overrides && Object.keys(overrides).length > 0) applyOverrides(plates, parts, bed, overrides)
   return plates
+}
+
+/** Moves items to their manual positions (possibly on other beds) and refreshes the oversize flags. */
+function applyOverrides(plates: Plate[], parts: Part[], bed: { x: number; y: number }, ov: PlateOverrides): void {
+  const size = new Map(parts.map((p) => [p.id, p.size]))
+  const all = plates.flatMap((pl) => pl.items.map((it) => ({ it, from: pl.index })))
+  for (const pl of plates) pl.items = []
+  const ensure = (n: number) => {
+    while (plates.length < n) plates.push({ index: plates.length + 1, items: [], oversize: false })
+  }
+  for (const { it, from } of all) {
+    const o = ov[plateKey(it.partId, it.copy)]
+    let target = from
+    if (o && Number.isFinite(o.x) && Number.isFinite(o.y)) {
+      const sz = size.get(it.partId)
+      const rot = !!o.rotated
+      if (sz) {
+        it.width = rot ? sz[1] : sz[0]
+        it.depth = rot ? sz[0] : sz[1]
+      }
+      it.rotated = rot || undefined
+      it.x = o.x
+      it.y = o.y
+      if (o.plate !== undefined && o.plate >= 1) target = Math.min(Math.floor(o.plate), 999)
+    }
+    ensure(target)
+    plates[target - 1]!.items.push(it)
+  }
+  while (plates.length > 1 && plates[plates.length - 1]!.items.length === 0) plates.pop()
+  for (const pl of plates) pl.oversize = pl.items.some((it) => it.width > bed.x + 1e-6 || it.depth > bed.y + 1e-6)
 }
 
 export function plateMeshes(plate: Plate, parts: Part[]): NamedMesh[] {

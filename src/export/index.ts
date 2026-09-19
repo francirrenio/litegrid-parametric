@@ -1,13 +1,13 @@
 import { deriveNozzle } from '../core/nozzle'
 import type { GenerateResult, Part } from '../model/part'
 import type { ProjectState } from '../model/types'
-import { planPlates, plateMeshes, type Plate } from './plates'
+import { planPlates, plateMeshes, type Plate, type PlateOverrides } from './plates'
 import { stlBlob, stlBytes } from './stl'
 import { threeMfBlob } from './threemf'
 import { zipStore, type ZipFile } from './zip'
 
-export { planPlates, plateMeshes } from './plates'
-export type { Plate } from './plates'
+export { planPlates, plateMeshes, plateKey } from './plates'
+export type { Plate, PlateItem, PlateOverride, PlateOverrides } from './plates'
 export { stlBlob } from './stl'
 export { threeMfBlob } from './threemf'
 
@@ -111,7 +111,7 @@ export function assemblyGuide(result: GenerateResult, project: ProjectState): st
 }
 
 /** Everything in one ZIP: STL per part, 3MF per bed, manifest, project, slicer profile, assembly guide. */
-export function projectZip(result: GenerateResult, project: ProjectState): Blob {
+export function projectZip(result: GenerateResult, project: ProjectState, overrides?: PlateOverrides): Blob {
   const enc = new TextEncoder()
   const files: ZipFile[] = []
   const text = (name: string, s: string) => files.push({ name, data: enc.encode(s) })
@@ -121,7 +121,7 @@ export function projectZip(result: GenerateResult, project: ProjectState): Blob 
       data: stlBytes([{ name: p.label, mesh: p.mesh }]),
     })
   }
-  const plates = planPlates(result.parts, project.printBed)
+  const plates = planPlates(result.parts, project.printBed, overrides)
   for (const pl of plates) {
     files.push({ name: `mesas/mesa-${pl.index}.stl`, data: stlBytes(plateMeshes(pl, result.parts)) })
   }
