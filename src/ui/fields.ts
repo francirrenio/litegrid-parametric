@@ -266,8 +266,33 @@ export function colorField(m: Model<string>, label: string, o: { tip?: string } 
   return field(label, h('div', { class: 'numrow' }, input, h('code', { class: 'mono' }, m.get())), { id, tip: o.tip })
 }
 
+const COLLAPSE_KEY = 'litegrid:collapsed'
+const collapsed: Set<string> = (() => {
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem(COLLAPSE_KEY) ?? '[]') as string[])
+  } catch {
+    return new Set<string>()
+  }
+})()
+
+/** A titled block of fields; the title is a button that folds and unfolds it (the choice is remembered). */
 export function group(title: string, ...kids: Child[]): HTMLElement {
-  return h('section', { class: 'group' }, h('h3', null, title), h('div', { class: 'group-body' }, kids))
+  const body = h('div', { class: 'group-body' }, kids)
+  const head = h('button', { type: 'button', class: 'group-head', 'aria-expanded': String(!collapsed.has(title)) }, icon('chevron', 14), h('span', null, title))
+  const sec = h('section', { class: 'group' + (collapsed.has(title) ? ' folded' : '') }, head, body)
+  head.addEventListener('click', () => {
+    const fold = !sec.classList.contains('folded')
+    sec.classList.toggle('folded', fold)
+    head.setAttribute('aria-expanded', String(!fold))
+    if (fold) collapsed.add(title)
+    else collapsed.delete(title)
+    try {
+      localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...collapsed]))
+    } catch {
+      /* storage unavailable */
+    }
+  })
+  return sec
 }
 
 /** Open accordions survive sidebar rebuilds. */

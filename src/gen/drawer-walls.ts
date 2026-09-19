@@ -1,6 +1,7 @@
 import type { Nozzle } from '../core/nozzle'
 import type { Mesh, Vec2 } from '../geom/mesh'
 import type { DrawerConfig, FaceFill, Load, Reinforcement } from '../model/types'
+import polygonClipping from 'polygon-clipping'
 import { generatePattern } from './patterns'
 import { clamp, prismAxis, slantedStrut } from './drawer-prims'
 
@@ -28,12 +29,14 @@ export interface DrawerCtx {
   reinf: Reinforcement
 }
 
+const numOr = (v: unknown): number | null => (typeof v === 'number' && v > 0 ? v : null)
+
 export type Wall = 'left' | 'right' | 'back' | 'front'
 const OV = 0.3
 const OV2 = 0.5
 const SQRT2 = Math.SQRT2
 
-export const topAt = (c: DrawerCtx, z: number) => (c.s > 0 && z > c.Zf - c.s ? Math.max(c.Hf, c.H - (z - (c.Zf - c.s))) : c.H)
+export const topAt = (c: DrawerCtx, z: number) => (c.s > 0 && z > c.Zf - c.s ? Math.max(c.Hf, c.H - ((z - (c.Zf - c.s)) * (c.H - c.Hf)) / c.s) : c.H)
 
 /** Distance n from the wall's outer surface -> coordinate on the wall's normal axis. */
 export function mapN(c: DrawerCtx, wall: Wall, n: number): number {
@@ -186,7 +189,7 @@ export function reinforcement(c: DrawerCtx): Mesh[] {
     if (eff === 'ribs' || eff === 'postsBeams') {
       const spacing = spacingFor(hEff)
       const n = Math.max(1, Math.ceil(len / spacing) - 1)
-      const rd = eff === 'ribs' ? clamp(hEff * 0.1, 2.5, 5) : 2.4
+      const rd = numOr(c.cfg.sides.reinforcementWidth) ?? (eff === 'ribs' ? clamp(hEff * 0.1, 2.5, 5) : 2.4)
       for (let i = 0; i < n; i++) {
         const vc = v0 + ((i + 1) * len) / (n + 1)
         const yTop = (sideWall ? Math.min(topAt(c, vc), hb + (c.s > 0 ? 0 : 0)) : c.H) - 1
@@ -197,22 +200,36 @@ export function reinforcement(c: DrawerCtx): Mesh[] {
         out.push(alongWall(c, wall, prof, vc - rt / 2, vc + rt / 2))
       }
     } else {
-      const yt = hb - 1
+      // Built for the full wall height, then trimmed to the sloped front like the wall itself.
+      void hb
+      const yt = c.H - 1
       const rise = yt - yb
       const dvMax = rise / Math.tan(angleMin)
       const cells = Math.max(1, Math.ceil(len / dvMax))
       const dv = len / cells
       const sw = 2
-      const depth = 2
+      const depth = numOr(c.cfg.sides.reinforcementWidth) ?? 2
+      const trim = sideWall && c.s > 0
+      const place = (strut: Vec2[]): void => {
+        if (!trim || strut.every(([z, y]) => y <= topAt(c, z) - 1 + 1e-6)) {
+          out.push(acrossWall(c, wall, strut, n0, c.w + depth))
+          return
+        }
+        const region: Array<[number, number]> = [[-1, 0], [c.Zf + 1, 0], [c.Zf + 1, c.Hf - 1], [c.Zf - c.s, c.H - 1], [-1, c.H - 1]]
+        const ring = strut.map(([a, b]) => [a, b] as [number, number])
+        for (const poly of polygonClipping.intersection([ring], [region])) {
+          const pts = poly[0]!.slice(0, -1).map(([a, b]) => [a, b] as Vec2)
+          if (pts.length >= 3) out.push(acrossWall(c, wall, pts, n0, c.w + depth))
+        }
+      }
       for (let k = 0; k < cells; k++) {
         const a = v0 + k * dv
         const j = 0.021 * (k % 5)
-        out.push(acrossWall(c, wall, slantedStrut(a + j, yb, a + dv - sw + j, yt, sw), n0, c.w + depth))
-        if (eff === 'x') out.push(acrossWall(c, wall, slantedStrut(a + dv - sw - j, yb, a - j, yt, sw), n0, c.w + depth))
-        else if (k % 2 === 1) {
-          out.pop()
-          out.push(acrossWall(c, wall, slantedStrut(a + dv - sw + j, yb, a + j, yt, sw), n0, c.w + depth))
-        }
+        if (eff === 'x') {
+          place(slantedStrut(a + j, yb, a + dv - sw + j, yt, sw))
+          place(slantedStrut(a + dv - sw - j, yb, a - j, yt, sw))
+        } else if (k % 2 === 1) place(slantedStrut(a + dv - sw + j, yb, a + j, yt, sw))
+        else place(slantedStrut(a + j, yb, a + dv - sw + j, yt, sw))
       }
     }
   }
@@ -222,7 +239,7 @@ export function reinforcement(c: DrawerCtx): Mesh[] {
 /** Horizontal lip along the top of the walls with a 45 degree underside; side lips leave gaps at divider slots. */
 export function rims(c: DrawerCtx, wide: boolean, gaps: Array<[number, number]>): Mesh[] {
   const out: Mesh[] = []
-  const rw = wide ? 4.5 : Math.max(2.4, c.nz.wall(2) + 1.2)
+  const rw = numOr(c.cfg.rimWidth) ?? (wide ? 4.5 : Math.max(2.4, c.nz.wall(2) + 1.2))
   const tip = 1.2
   const n0 = c.w - OV
   const yT = c.H

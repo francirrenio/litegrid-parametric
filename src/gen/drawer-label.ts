@@ -9,6 +9,13 @@ const LIP = 1
 const CLEAR = 0.6
 const OV = 0.3
 
+/** 'none' (also when the holder switch is off), 'internal' groove in the front wall, or 'external' separate holder. */
+export function labelModeOf(cfg: DrawerConfig): 'none' | 'internal' | 'external' {
+  return !cfg.labelHolder ? 'none' : cfg.labelMode ?? 'external'
+}
+
+export const CARD_CLEAR = CLEAR
+
 export const DEFAULT_LABEL_W = 40
 export const DEFAULT_LABEL_H = 14
 

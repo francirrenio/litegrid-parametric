@@ -55,12 +55,12 @@ describe('migrateProject', () => {
     expect(p.sections[0]!.rows).toEqual([{ height: 'auto', divisions: 30, load: 'media' }])
   })
 
-  it('unwraps an envelope and completes partial overrides', () => {
+  it('unwraps an envelope and keeps overrides partial', () => {
     const p = migrateProject({ version: 1, savedAt: 'x', project: { overrides: { BAY_A: { sides: { fill: 'closed' }, labelHolder: false } } } })
     const o = p.overrides.BAY_A!
     expect(o.labelHolder).toBe(false)
     expect(o.sides!.fill).toBe('closed')
-    expect(o.sides!.pattern).toBe(defaultProject().drawerDefaults.sides.pattern)
+    expect(o.sides!.pattern).toBeUndefined()
   })
 
   it('ignores prototype pollution keys', () => {

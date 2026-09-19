@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.3.0',
+    date: '2026-09-19',
+    pt: ['Reforço em X e treliça agora tem a altura toda da parede e é aparado pelo chanfro da frente, como a parede.', 'Chanfro da frente paramétrico: altura da frente e comprimento do chanfro.', 'Aba no topo da frente virou opção própria, com profundidade ajustável (antes era o formato "Com aba").', 'Largura do reforço e largura da borda superior ajustáveis.', 'Porta-etiqueta com escolha: nenhum, embutido na parede (canal na frente) ou externo (imprimir e colar).', 'Grupos de parâmetros com título destacado e recolhíveis.', 'Correção: parâmetros de seção e de fila, e valores numéricos do fundo, agora sobrevivem a recarregar ou importar o projeto.'],
+    en: ['X and truss reinforcement now spans the full wall height and is trimmed by the front slope, like the wall.', 'Parametric front slope: front height and slope length.', 'The lip on top of the front is now its own option with adjustable depth (it used to be the "With lip" shape).', 'Adjustable reinforcement width and top rim width.', 'Label holder choice: none, built into the wall (a groove in the front) or external (print and glue).', 'Parameter groups with a stronger title that can be collapsed.', 'Fix: section and row parameters, and numeric floor values, now survive reloading or importing the project.'],
+  },
+  {
     version: '0.2.9',
     date: '2026-09-19',
     pt: ['Puxador e porta-etiqueta não sobressaem mais da frente da gaveta: o puxador em barra virou fenda com apoio por dentro e o porta-etiqueta fica num rebaixo, rente. A profundidade da gaveta não muda.'],

@@ -7,8 +7,8 @@ import type { DrawerConfig, Load, ProjectState } from '../model/types'
 import { fitClearance } from './metrics'
 import { resolveForBay } from '../model/resolve'
 import { hashString, prismAxis } from './drawer-prims'
-import { frontMeshes, planFront, type FrontPlan } from './drawer-front'
-import { holderThickness, labelHolderMesh, labelSpec, type LabelSpec } from './drawer-label'
+import { CHANNEL_DEPTH, frontMeshes, planFront, type FrontPlan } from './drawer-front'
+import { CARD_CLEAR, holderThickness, labelHolderMesh, labelModeOf, labelSpec, type LabelSpec } from './drawer-label'
 import {
   chamfers, faceHoles, frameOf, GROOVE_DEPTH, grooveRibs, reinforcement, resolveReinforcement, rims, topAt,
   wallPlates, type DrawerCtx,
@@ -70,7 +70,12 @@ export function buildDrawer(p: ProjectState, nz: Nozzle, dim: Bay['drawer'], cfg
   const fT = floorThickness(nz, w, cfg, load, W, D)
   const plan = planFront(W, H, w, fT, nz, cfg, D)
   const spec = labelSpec(W, w, fT, plan, cfg)
-  if (spec) {
+  if (spec && labelModeOf(cfg) === 'internal') {
+    const half = (spec.lw + CARD_CLEAR) / 2
+    plan.channel = { x0: W / 2 - half, x1: W / 2 + half, y0: spec.y0 }
+    plan.slot = null // the open groove already gives the finger a way in
+    plan.wf = Math.max(plan.wf, CHANNEL_DEPTH + 1)
+  } else if (spec) {
     const depth = holderThickness(nz) + 0.2
     plan.wf = Math.max(plan.wf, depth + 0.9)
     plan.pocket = { x0: (W - spec.outerW) / 2, x1: (W + spec.outerW) / 2, y0: spec.y0, y1: spec.y0 + spec.outerH, depth }
@@ -154,7 +159,7 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
     }))
 
     const spec = labelSpec(d.width, c.w, c.fT, built.plan, g.cfg)
-    if (spec) {
+    if (spec && labelModeOf(g.cfg) === 'external') {
       const hk = `${spec.lw}x${spec.lh}`
       const entry = holders.get(hk) ?? { spec, placements: [] }
       for (const b of g.bays) {

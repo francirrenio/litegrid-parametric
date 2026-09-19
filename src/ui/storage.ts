@@ -38,17 +38,25 @@ const ENUMS: Record<string, readonly string[]> = {
   attach: ['tabs', 'clips', 'screws', 'glue'],
   standoff: ['none', 'spacers', 'pockets'],
   front: ['flat', 'slope', 'lip'],
+  labelMode: ['none', 'internal', 'external'],
   handle: ['cutout', 'bar', 'none'],
   bracing: ['auto', 'none', 'corners', 'diagonal', 'back'],
   mode: ['none', 'screws', 'keyhole', 'cleat'],
   screw: ['none', 'M3', 'M4'],
   load: ['leve', 'media', 'pesada'],
 }
-const AUTO_KEYS = new Set(['frame', 'thickness', 'standoffMm', 'barWidth'])
+const AUTO_KEYS = new Set(['frame', 'thickness', 'standoffMm', 'barWidth', 'floorPerimeters', 'frontHeight', 'chamferLength', 'rimWidth', 'reinforcementWidth'])
 const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
 
 function pickSize(v: unknown): number | 'auto' {
   return isNum(v) && v > 0 ? v : 'auto'
+}
+
+/** A partial drawer patch (section, row or drawer level): only known keys with valid values, nothing filled in. */
+function pickDrawerPatch(raw: unknown): Obj | undefined {
+  if (!isObj(raw)) return undefined
+  const part = pickObject(defaultDrawer() as unknown as Obj, raw)
+  return Object.keys(part).length ? part : undefined
 }
 
 function pickSections(patch: unknown): unknown {
@@ -56,14 +64,17 @@ function pickSections(patch: unknown): unknown {
   const out = patch.slice(0, 30).flatMap((s) => {
     if (!isObj(s)) return []
     const rows = Array.isArray(s.rows) ? s.rows.slice(0, 40) : []
+    const sd = pickDrawerPatch(s.drawer)
     return [
       {
         width: pickSize(s.width),
+        ...(sd ? { drawer: sd } : {}),
         rows: rows.flatMap((r) => {
           if (!isObj(r)) return []
           const div = isNum(r.divisions) ? Math.min(30, Math.max(1, Math.round(r.divisions))) : 1
           const load = typeof r.load === 'string' && ENUMS.load!.includes(r.load) ? r.load : 'media'
-          return [{ height: pickSize(r.height), divisions: div, load }]
+          const rd = pickDrawerPatch(r.drawer)
+          return [{ height: pickSize(r.height), divisions: div, load, ...(rd ? { drawer: rd } : {}) }]
         }),
       },
     ]
@@ -95,11 +106,9 @@ function pickOverrides(patch: unknown): unknown {
   const def = defaultDrawer() as unknown as Obj
   for (const [id, raw] of Object.entries(patch).slice(0, 500)) {
     if (UNSAFE.has(id) || !isObj(raw)) continue
-    const part = pickObject(def, raw)
-    for (const [k, v] of Object.entries(part)) {
-      if (isObj(v) && isObj(def[k])) part[k] = deepAssign(structuredClone(def[k]) as Obj, v)
-    }
-    out[id] = part
+    void def
+    const part = pickDrawerPatch(raw)
+    if (part) out[id] = part
   }
   return out
 }

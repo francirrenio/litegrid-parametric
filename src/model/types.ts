@@ -24,6 +24,8 @@ export interface FaceFill {
   /** Solid border around the face (mm). 'auto' = derived from nozzle. */
   frame: number | 'auto'
   reinforcement: Reinforcement
+  /** How far the reinforcement sticks out from the wall (mm); 'auto' picks by wall height. */
+  reinforcementWidth?: number | 'auto'
   panelSystem: PanelSystem
   pegboardHole: '1/4' | '1/8'
   hswVariant: 'sd' | 'hd'
@@ -55,15 +57,26 @@ export interface DrawerConfig {
   sides: FaceFill
   floor: FaceFill
   front: DrawerFront
+  /** Height of the front wall for the sloped front (mm); 'auto' = about 55 % of the drawer. */
+  frontHeight?: number | 'auto'
+  /** Horizontal length of the front slope (mm); 'auto' = 45 degrees. */
+  chamferLength?: number | 'auto'
+  /** Inward lip along the top of the front wall (replaces the old 'lip' front). */
+  frontLip?: boolean
+  lipDepth?: number
   handle: DrawerHandle
   /** Separate card holder part, printed apart and glued on the drawer front. */
   labelHolder: boolean
+  /** none, a groove in the front wall (internal), or a separate holder glued into a recess (external). Falls back to labelHolder. */
+  labelMode?: 'none' | 'internal' | 'external'
   labelWidth: number
   labelHeight: number
   /** Removable divider slots across the drawer width (0 = none). */
   dividerSlots: number
   innerChamfer: boolean
   topRim: boolean
+  /** How far the top rim reaches into the drawer (mm); 'auto' by wall. */
+  rimWidth?: number | 'auto'
 }
 
 export type SkeletonBracing = 'auto' | 'none' | 'corners' | 'diagonal' | 'back'

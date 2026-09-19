@@ -144,12 +144,25 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
     } else if (cur !== 'panel') {
       out.push(
         selectField(m<FaceFill['reinforcement']>('reinforcement'), tr('Reforço', 'Reinforcement'), REINFORCEMENTS, {
+          rebuild: true,
           tip: tr(
             'Estrutura extra atrás da parede para ela não empenar. Automático escolhe por você; use Nervuras ou Treliça em paredes grandes e finas.',
             'Extra structure behind the wall to keep it from warping. Automatic decides for you; use Ribs or Truss on large thin walls.',
           ),
         }),
       )
+      if (kind === 'drawer' && m<FaceFill['reinforcement']>('reinforcement').get() !== 'none') {
+        out.push(
+          autoField(m<number | 'auto'>('reinforcementWidth'), tr('Largura do reforço', 'Reinforcement width'), {
+            min: 0.8, max: 12, step: 0.1, unit: 'mm', fallback: 3, autoText: tr('automática', 'automatic'),
+            hint: tr('Quanto o reforço avança da parede para dentro da gaveta.', 'How far the reinforcement sticks out from the wall into the drawer.'),
+            tip: tr(
+              'Quanto o reforço avança da parede para dentro da gaveta. Automático escolhe pela altura (2,5 a 5 mm). Diminua se o reforço estiver tomando espaço demais; aumente para uma parede mais rígida.',
+              'How far the reinforcement sticks out from the wall into the drawer. Automatic picks by height (2.5 to 5 mm). Lower it if it takes up too much room; raise it for a stiffer wall.',
+            ),
+          }),
+        )
+      }
     }
   }
   return out

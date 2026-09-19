@@ -149,6 +149,30 @@ export function gavetasTab(st: Store): TabView {
         'Thickness of the drawer floor, in perimeters. Auto uses the same as the walls. A thicker floor holds more weight; a thinner one saves filament (the minimum is 0.9 mm).',
       ),
     })
+  const rs = resolveAt(st.project, st.scope)
+  const frontModel: Model<DrawerFront> = { ...mk<DrawerFront>('front'), get: () => (rs.front === 'lip' ? 'flat' : rs.front) }
+  const lipModel: Model<boolean> = {
+    ...mk<boolean>('frontLip'),
+    get: () => !!rs.frontLip || rs.front === 'lip',
+    set: (v, rb) => {
+      if (!v && rs.front === 'lip') mk<DrawerFront>('front').set('flat', false)
+      mk<boolean>('frontLip').set(v, rb)
+    },
+  }
+  const holderModel = mk<boolean>('labelHolder')
+  const labelModel: Model<string> = {
+    key: holderModel.key,
+    get: () => (!rs.labelHolder ? 'none' : rs.labelMode ?? 'external'),
+    set: (v, rb) => {
+      if (v === 'none') holderModel.set(false, rb)
+      else {
+        mk<string>('labelMode').set(v, false)
+        holderModel.set(true, rb)
+      }
+    },
+    origin: holderModel.origin,
+    reset: holderModel.reset,
+  }
   const face = (title: string, sub: 'sides' | 'floor') =>
     group(title, ...(sub === 'floor' ? [floorPerim()] : []), ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer', pathModel(st, 'smallestItem') as never, sub === 'floor' ? 'floor' : undefined) as HTMLElement[]))
 
@@ -173,26 +197,66 @@ export function gavetasTab(st: Store): TabView {
     face(tr('Fundo', 'Floor'), 'floor'),
     group(
       tr('Frente', 'Front'),
-      selectField<DrawerFront>(mk('front'), tr('Frente', 'Front'), [['flat', tr('Lisa', 'Flat')], ['slope', tr('Chanfrada', 'Sloped')], ['lip', tr('Com aba', 'With lip')]], {
+      selectField<DrawerFront>(frontModel, tr('Formato da frente', 'Front shape'), [['flat', tr('Lisa', 'Flat')], ['slope', tr('Chanfrada', 'Sloped')]], {
+        rebuild: true,
         tip: tr(
-          'Formato da frente da gaveta. Lisa é a mais simples; Chanfrada facilita ver e pegar o conteúdo; Com aba cria uma borda que ajuda a puxar e a colar etiquetas.',
-          'Shape of the drawer front. Flat is simplest; Sloped makes the contents easier to see and reach; With lip adds an edge that helps pulling and labelling.',
+          'Lisa é a mais simples; Chanfrada baixa a frente em um corte inclinado, o que facilita ver e pegar o conteúdo. A altura e o comprimento do chanfro são ajustáveis.',
+          'Flat is simplest; Sloped lowers the front with an angled cut, which makes the contents easier to see and reach. The height and length of the slope are adjustable.',
         ),
       }),
+      ...(rs.front === 'slope'
+        ? [
+            autoField(mk<number | 'auto'>('frontHeight'), tr('Altura da frente', 'Front height'), {
+              min: 8, max: 300, unit: 'mm', fallback: 30, autoText: tr('automática', 'automatic'),
+              hint: tr('Altura da parede da frente. As laterais descem até ela pelo chanfro.', 'Height of the front wall. The sides come down to it along the slope.'),
+              tip: tr(
+                'Altura da parede da frente. Automático usa cerca de 55% da altura da gaveta. Quanto mais baixa, mais fácil enxergar e alcançar o conteúdo, mas menos ele fica protegido.',
+                'Height of the front wall. Automatic uses about 55% of the drawer height. The lower it is, the easier to see and reach the contents, but the less they are held in.',
+              ),
+            }),
+            autoField(mk<number | 'auto'>('chamferLength'), tr('Comprimento do chanfro', 'Chamfer length'), {
+              min: 6, max: 300, unit: 'mm', fallback: 30, autoText: tr('45°', '45°'),
+              hint: tr('Distância, ao longo da gaveta, em que a lateral desce até a altura da frente.', 'Distance, along the drawer, over which the side comes down to the front height.'),
+              tip: tr(
+                'Comprimento do corte inclinado das laterais. Automático faz 45°. Mais comprido deixa a rampa mais suave; mais curto, mais íngreme. Limitado a 60% da profundidade.',
+                'Length of the angled cut on the sides. Automatic makes 45°. Longer makes a gentler ramp; shorter a steeper one. Limited to 60% of the depth.',
+              ),
+            }),
+          ]
+        : []),
       selectField<DrawerHandle>(mk('handle'), tr('Puxador', 'Handle'), [['cutout', tr('Recorte', 'Cutout')], ['bar', tr('Fenda com apoio', 'Slot with catch')], ['none', tr('Sem puxador', 'No handle')]], {
         tip: tr(
           'Como puxar a gaveta. Nada sobressai da frente. Recorte é um vão para o dedo na borda; Fenda com apoio é uma abertura na frente com um apoio por dentro, mais firme para gavetas pesadas; Sem puxador só se você abrir de outro modo.',
           'How you pull the drawer. Nothing sticks out of the front. Cutout is a finger notch on the edge; Slot with catch is an opening in the front with a catch inside, firmer for heavy drawers; No handle only if you open it another way.',
         ),
       }),
-      checkField(mk<boolean>('labelHolder'), tr('Porta-etiqueta (peça separada, colar)', 'Label holder (separate part, glued)'), {
+      checkField(lipModel, tr('Aba no topo da frente', 'Lip on top of the front'), {
         rebuild: true,
         tip: tr(
-          'Adiciona uma moldura na frente onde entra uma etiqueta de papel, para identificar o conteúdo. É impressa à parte e colada dentro de um rebaixo da frente, sem sobressair.',
-          'Adds a frame on the front that holds a paper label to identify the contents. It is printed separately and glued into a recess in the front, without sticking out.',
+          'Uma aba que avança para dentro da gaveta, no topo da frente. Reforça a frente e ajuda a segurar o conteúdo.',
+          'A lip that reaches into the drawer along the top of the front. It stiffens the front and helps hold the contents.',
         ),
       }),
-      ...(resolveAt(st.project, st.scope).labelHolder
+      ...(lipModel.get()
+        ? [
+            numField(withDefault(mk<number>('lipDepth'), 8), tr('Profundidade da aba', 'Lip depth'), {
+              min: 3, max: 20, unit: 'mm', slider: true,
+              tip: tr('Quanto a aba avança para dentro da gaveta. 6–10 mm é comum; mais fundo tampa parte da abertura.', 'How far the lip reaches into the drawer. 6–10 mm is common; deeper covers part of the opening.'),
+            }),
+          ]
+        : []),
+      selectField<string>(labelModel, tr('Porta-etiqueta', 'Label holder'), [
+        ['none', tr('Nenhum', 'None')],
+        ['internal', tr('Embutido na parede', 'Built into the wall')],
+        ['external', tr('Externo (imprimir e colar)', 'External (print and glue)')],
+      ], {
+        rebuild: true,
+        tip: tr(
+          'Onde a etiqueta de papel entra. Embutido faz um canal na própria frente da gaveta, sem peça extra. Externo é uma moldura impressa à parte e colada num rebaixo da frente. Em nenhum dos dois algo sobressai da gaveta.',
+          'Where the paper label goes. Built-in makes a groove in the drawer front itself, with no extra part. External is a frame printed separately and glued into a recess in the front. Neither sticks out of the drawer.',
+        ),
+      }),
+      ...(labelModel.get() !== 'none'
         ? [
             numField(withDefault(mk<number>('labelWidth'), 40), tr('Largura da etiqueta', 'Label width'), {
               min: 12, max: 120, unit: 'mm', slider: true,
@@ -229,11 +293,20 @@ export function gavetasTab(st: Store): TabView {
         ),
       }),
       checkField(mk<boolean>('topRim'), tr('Borda superior reforçada', 'Reinforced top rim'), {
+        rebuild: true,
         tip: tr(
           'Engrossa a borda de cima das paredes para elas não abrirem com o peso. Ligue em gavetas grandes, paredes vazadas ou carga pesada.',
           'Thickens the top edge of the walls so they do not spread under load. Turn it on for large drawers, perforated walls or heavy loads.',
         ),
       }),
+      ...(rs.topRim
+        ? [
+            autoField(mk<number | 'auto'>('rimWidth'), tr('Largura da borda', 'Rim width'), {
+              min: 1, max: 12, step: 0.1, unit: 'mm', fallback: 3, autoText: tr('automática', 'automatic'),
+              tip: tr('Quanto a borda reforçada avança para dentro da gaveta. Automático usa cerca de 2,4 a 4,5 mm.', 'How far the reinforced rim reaches into the drawer. Automatic uses about 2.4 to 4.5 mm.'),
+            }),
+          ]
+        : []),
     ),
   )
   return { el }
