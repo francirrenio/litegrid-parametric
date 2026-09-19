@@ -108,40 +108,35 @@ function solid(box: Box, shape: Shape): boolean {
 }
 
 /**
- * Knob centres along a seam: at most three, each at the middle of a solid stretch (a bar between windows), taking the
- * longest stretches first. A long stretch only gets a second knob when fewer than three stretches exist.
+ * Knob centres along a seam, evenly spaced from near one end to near the other (corners included): two on a short
+ * seam, more on a long one (about one per 80 mm). Each ideal spot moves to the nearest solid position; spots with no
+ * solid position close enough are dropped.
  */
-function knobs(shape: Shape, c: number, y0: number, y1: number, k: Knob): number[] {
-  const step = 2
-  const runs: Array<{ a: number; b: number }> = []
-  let cur: { a: number; b: number } | undefined
-  for (let y = y0 + k.head + 1; y <= y1 - k.head - 1; y += step) {
-    const ok = solid({ x0: c - 2, y0: y - k.head - 1, x1: c + k.len + 2, y1: y + k.head + 1 }, shape)
-    if (ok) {
-      if (cur) cur.b = y
-      else cur = { a: y, b: y }
-    } else if (cur) {
-      runs.push(cur)
-      cur = undefined
-    }
+export function seamKnobs(shape: Shape, c: number, y0: number, y1: number, k: Knob): number[] {
+  const valid: number[] = []
+  for (let y = y0 + k.head + 1; y <= y1 - k.head - 1; y += 2) {
+    if (solid({ x0: c - 2, y0: y - k.head - 1, x1: c + k.len + 2, y1: y + k.head + 1 }, shape)) valid.push(y)
   }
-  if (cur) runs.push(cur)
-  if (runs.length === 0) return []
-  const span = y1 - y0
-  const want = Math.min(3, Math.max(2, Math.round(span / 90)))
-  const gap = 2 * k.head + 6
-  const byLength = runs.slice().sort((p, q) => q.b - q.a - (p.b - p.a))
-  const picked: number[] = byLength.slice(0, want).map((r) => (r.a + r.b) / 2)
-  for (const r of byLength) {
-    if (picked.length >= want) break
-    const len = r.b - r.a
-    if (len >= 2 * gap) {
-      for (const y of [r.a + len / 4, r.a + (3 * len) / 4]) {
-        if (picked.length < want && picked.every((q) => Math.abs(q - y) >= gap)) picked.push(y)
-      }
+  if (valid.length === 0) return []
+  const length = y1 - y0
+  const n = Math.min(4, Math.max(2, Math.ceil(length / 80)))
+  const margin = k.head + 5
+  const first = y0 + margin
+  const last = y1 - margin
+  if (last <= first) return [valid[Math.floor(valid.length / 2)]!]
+  const pitch = (last - first) / (n - 1)
+  const gap = 2 * k.head + 4
+  const nearest = (target: number) => valid.reduce((best, y) => (Math.abs(y - target) < Math.abs(best - target) ? y : best), valid[0]!)
+  for (const tol of [0.25, 0.45, 0.7]) {
+    const picked: number[] = []
+    for (let i = 0; i < n; i++) {
+      const target = first + pitch * i
+      const y = nearest(target)
+      if (Math.abs(y - target) <= tol * pitch && picked.every((q) => Math.abs(q - y) >= gap)) picked.push(y)
     }
+    if (picked.length >= Math.min(n, 2)) return picked.sort((p, q) => p - q)
   }
-  return picked.sort((p, q) => p - q)
+  return [nearest((first + last) / 2)]
 }
 
 function dovetail(c: number, y: number, k: Knob, grow: number): Shape {
@@ -160,7 +155,7 @@ function cutAt(shape: Shape, c: number, fit: number, postW: number): Shape[] {
   let k = knobFor(postW)
   for (const scale of KNOB_SCALES) {
     k = knobFor(postW, scale)
-    ys = knobs(shape, c, b.y0, b.y1, k)
+    ys = seamKnobs(shape, c, b.y0, b.y1, k)
     if (ys.length >= 2) break
   }
   const left = union(intersect(shape, rect(b.x0 - 1, b.y0 - 1, c, b.y1 + 1)), ...ys.map((y) => dovetail(c, y, k, 0)))

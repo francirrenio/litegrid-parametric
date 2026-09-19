@@ -260,3 +260,32 @@ function pip(ring: number[][], x: number, y: number) {
   }
   return inside
 }
+
+describe('seam knob distribution', () => {
+  it('spaces knobs evenly with the ends included: two on a short seam, three on a long one', async () => {
+    const { seamKnobs, knobFor } = await import('./split')
+    const { rect } = await import('./plate2d')
+    const k = knobFor(30)
+    const short = seamKnobs(rect(-15, 0, 15, 150), 0, 0, 150, k)
+    expect(short).toHaveLength(2)
+    expect(short[0]!).toBeLessThan(25)
+    expect(short[1]!).toBeGreaterThan(125)
+    const long = seamKnobs(rect(-15, 0, 15, 200), 0, 0, 200, k)
+    expect(long).toHaveLength(3)
+    expect(long[1]! - long[0]!).toBeCloseTo(long[2]! - long[1]!, 0)
+    expect(long[0]!).toBeLessThan(25)
+    expect(long[2]!).toBeGreaterThan(175)
+    const veryLong = seamKnobs(rect(-15, 0, 15, 320), 0, 0, 320, k)
+    expect(veryLong.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('skips spots without solid material and still fits the nearest solid one', async () => {
+    const { seamKnobs, knobFor } = await import('./split')
+    const { rect, diff } = await import('./plate2d')
+    const k = knobFor(30)
+    const withHole = diff(rect(-15, 0, 15, 200), rect(-20, 90, 20, 110))
+    const ys = seamKnobs(withHole, 0, 0, 200, k)
+    expect(ys.length).toBeGreaterThanOrEqual(2)
+    for (const y of ys) expect(y < 90 - k.head || y > 110 + k.head).toBe(true)
+  })
+})
