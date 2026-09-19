@@ -5,7 +5,7 @@ import { defaultProject, PRESETS } from '../model/defaults'
 import type { GenerateResult } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
-import { ALL_VISIBLE, type Visibility } from './appearance'
+import { ALL_VISIBLE, isPartHidden, partFamily, type Visibility } from './appearance'
 import { outerBox, type Box } from './bounds'
 import type { PartGroup } from '../model/part'
 import { newId, ProjectRepo, type ProjectMeta } from './storage'
@@ -367,7 +367,8 @@ export class Store {
 
   togglePart(id: string): void {
     const v = this.vis
-    v.hiddenParts = v.hiddenParts.includes(id) ? v.hiddenParts.filter((x) => x !== id) : [...v.hiddenParts, id]
+    const f = partFamily(id)
+    v.hiddenParts = isPartHidden(v, id) ? v.hiddenParts.filter((x) => partFamily(x) !== f) : [...v.hiddenParts, id]
     this.visChanged()
   }
 
@@ -393,8 +394,12 @@ export class Store {
 
   setPartColor(id: string, hex: string | null): void {
     const c = (this.project.colors ??= { groups: {}, parts: {} })
-    if (hex) c.parts[id] = hex
-    else delete c.parts[id]
+    const key = partFamily(id)
+    if (hex) c.parts[key] = hex
+    else {
+      delete c.parts[key]
+      delete c.parts[id]
+    }
     this.scheduleSave()
     this.visChanged()
   }

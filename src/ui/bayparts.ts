@@ -1,5 +1,5 @@
 import type { GenerateResult, PartGroup } from '../model/part'
-import type { Visibility } from './appearance'
+import { isPartHidden, partFamily, type Visibility } from './appearance'
 import { instanceBox } from './bounds'
 
 export interface BayPart {
@@ -38,9 +38,9 @@ export function hiddenInBay(result: GenerateResult, vis: Visibility, bayId: stri
   const out = new Map<string, HiddenEntry>()
   if (vis.isolateBay && vis.isolateBay !== bayId) out.set('all', { kind: 'all', id: 'all', label: 'tudo' })
   for (const p of partsInBay(result, bayId)) {
-    if (vis.isolate && (vis.isolate !== p.id || vis.isolateOne)) {
+    if (vis.isolate && (partFamily(vis.isolate) !== partFamily(p.id) || vis.isolateOne)) {
       out.set('all', { kind: 'all', id: 'all', label: 'tudo' })
-    } else if (vis.hiddenParts.includes(p.id)) {
+    } else if (isPartHidden(vis, p.id)) {
       out.set(`part:${p.id}`, { kind: 'part', id: p.id, label: p.label })
     } else if (vis.hiddenGroups.includes(p.group)) {
       out.set(`group:${p.group}`, { kind: 'group', id: p.group, label: 'todas as gavetas' })

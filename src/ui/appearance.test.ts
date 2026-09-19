@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ALL_VISIBLE, anyHidden, GROUP_DEFAULT, isInstanceVisible, partColor, type Visibility } from './appearance'
+import { ALL_VISIBLE, anyHidden, GROUP_DEFAULT, isInstanceVisible, isPartHidden, partColor, partFamily, type Visibility } from './appearance'
 
 const part = { id: 'gaveta-1', group: 'gaveta' as const, color: undefined }
 
@@ -13,6 +13,26 @@ describe('part colours', () => {
   it('a skin keeps the colour chosen for it until overridden', () => {
     expect(partColor(undefined, { id: 's', group: 'skin', color: '#abcdef' })).toBe('#abcdef')
     expect(partColor({ groups: { skin: '#010203' }, parts: {} }, { id: 's', group: 'skin', color: '#abcdef' })).toBe('#010203')
+  })
+})
+
+describe('part family survives parameter changes', () => {
+  it('drawer and divider ids lose their settings hash; other ids stay', () => {
+    expect(partFamily('gaveta-98x58x117-13b885h')).toBe('gaveta-98x58x117')
+    expect(partFamily('gaveta-98x58x117-zz9')).toBe('gaveta-98x58x117')
+    expect(partFamily('divisoria-98x117-abc1')).toBe('divisoria-98x117')
+    expect(partFamily('quadro-1')).toBe('quadro-1')
+    expect(partFamily('porta-etiqueta-40x14')).toBe('porta-etiqueta-40x14')
+  })
+
+  it('hiding, isolating and colouring keep working after the settings hash changes', () => {
+    const v: Visibility = { ...ALL_VISIBLE, hiddenParts: ['gaveta-98x58x117-aaa'] }
+    expect(isPartHidden(v, 'gaveta-98x58x117-bbb')).toBe(true)
+    expect(isInstanceVisible(v, 'gaveta', 'gaveta-98x58x117-bbb', 0)).toBe(false)
+    expect(isInstanceVisible(v, 'gaveta', 'gaveta-197x58x117-bbb', 0)).toBe(true)
+    const iso: Visibility = { ...ALL_VISIBLE, isolate: 'gaveta-98x58x117-aaa', isolateOne: false }
+    expect(isInstanceVisible(iso, 'gaveta', 'gaveta-98x58x117-ccc', 1)).toBe(true)
+    expect(partColor({ groups: {}, parts: { 'gaveta-98x58x117': '#123456' } }, { id: 'gaveta-98x58x117-ddd', group: 'gaveta', color: undefined })).toBe('#123456')
   })
 })
 

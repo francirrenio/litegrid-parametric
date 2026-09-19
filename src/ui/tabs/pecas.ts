@@ -1,7 +1,7 @@
 import { manifestJson, partStl, slug } from '../../export'
 import type { Part } from '../../model/part'
 import { btn } from '../fields'
-import { partColor } from '../appearance'
+import { isPartHidden, partColor } from '../appearance'
 import { download, fmt, h, icon, toast } from '../dom'
 import { tabOfWarning, type Store } from '../state'
 import type { TabView } from './common'
@@ -52,7 +52,7 @@ function list(st: Store, repaint: () => void): HTMLElement {
   }
   const total = parts.reduce((s, p) => s + p.instances.length, 0)
   const rows = parts.map((p) => {
-    const hidden = st.vis.hiddenParts.includes(p.id) || st.vis.hiddenGroups.includes(p.group)
+    const hidden = isPartHidden(st.vis, p.id) || st.vis.hiddenGroups.includes(p.group)
     const swatch = h('input', { type: 'color', class: 'swatch', value: partColor(st.project.colors, p), 'aria-label': `Cor de ${p.label}` })
     swatch.addEventListener('input', () => st.setPartColor(p.id, swatch.value))
     const eye = h('button', {

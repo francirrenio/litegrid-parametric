@@ -19,6 +19,18 @@ export const GROUP_NAME: Record<PartGroup, string> = {
   teste: 'Teste',
 }
 
+/**
+ * Part ids of drawers and dividers end in a hash of their settings, so the id changes whenever a parameter changes.
+ * The family drops that hash: same kind and size, whatever the settings. Hiding, isolating and colouring use it so
+ * they survive parameter edits.
+ */
+export const partFamily = (id: string): string => (/^(gaveta|divisoria)-/.test(id) ? id.replace(/-[0-9a-z]+$/, '') : id)
+
+export const isPartHidden = (v: { hiddenParts: string[] }, id: string): boolean => {
+  const f = partFamily(id)
+  return v.hiddenParts.some((h) => partFamily(h) === f)
+}
+
 export interface Colors {
   groups: Record<string, string>
   parts: Record<string, string>
@@ -29,7 +41,7 @@ export const NO_COLORS: Colors = { groups: {}, parts: {} }
 /** Colour of a part: its own override, else its group's override, else the built-in colour. */
 export function partColor(colors: Colors | undefined, part: Pick<Part, 'id' | 'group' | 'color'>): string {
   return (
-    colors?.parts[part.id] ?? colors?.groups[part.group] ?? (part.group === 'skin' && part.color ? part.color : GROUP_DEFAULT[part.group])
+    colors?.parts[partFamily(part.id)] ?? colors?.parts[part.id] ?? colors?.groups[part.group] ?? (part.group === 'skin' && part.color ? part.color : GROUP_DEFAULT[part.group])
   )
 }
 
@@ -47,8 +59,8 @@ export const ALL_VISIBLE: Visibility = { hiddenGroups: [], hiddenParts: [], isol
 
 export function isInstanceVisible(v: Visibility, group: PartGroup, partId: string, index: number, inBay = false): boolean {
   if (v.isolateBay) return group === 'gaveta' && inBay
-  if (v.isolate) return partId === v.isolate && (!v.isolateOne || index === 0)
-  return !v.hiddenGroups.includes(group) && !v.hiddenParts.includes(partId)
+  if (v.isolate) return partFamily(partId) === partFamily(v.isolate) && (!v.isolateOne || index === 0)
+  return !v.hiddenGroups.includes(group) && !isPartHidden(v, partId)
 }
 
 export function anyHidden(v: Visibility): boolean {

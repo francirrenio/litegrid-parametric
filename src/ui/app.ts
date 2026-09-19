@@ -1,4 +1,4 @@
-import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor } from './appearance'
+import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor, partFamily } from './appearance'
 import { hiddenInBay } from './bayparts'
 import { createHeader } from './header'
 import type { PartGroup } from '../model/part'
@@ -187,9 +187,9 @@ export function mountApp(root: HTMLElement, st: Store): void {
       'select',
       { 'aria-label': 'Mostrar só uma peça', onChange: (e: Event) => { st.setIsolate((e.target as HTMLSelectElement).value || null); paintVis() } },
       h('option', { value: '' }, 'todas as peças'),
-      parts.map((p) => h('option', { value: p.id, selected: p.id === st.vis.isolate }, `${p.label} (${p.instances.length})`)),
+      parts.map((p) => h('option', { value: p.id, selected: !!st.vis.isolate && partFamily(p.id) === partFamily(st.vis.isolate) }, `${p.label} (${p.instances.length})`)),
     )
-    iso.value = st.vis.isolate ?? ''
+    iso.value = parts.find((p) => st.vis.isolate && partFamily(p.id) === partFamily(st.vis.isolate!))?.id ?? ''
     visPanel.append(h('div', { class: 'vis-iso' }, h('span', { class: 'lbl' }, 'Mostrar só'), iso, h('label', { class: 'vis-check' }, one, h('span', null, 'só uma cópia'))))
     const label = (id: string) => parts.find((p) => p.id === id)?.label ?? id
     if (st.vis.hiddenParts.length > 0) {
@@ -217,7 +217,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
       const colorNow = partColor(st.project.colors, part)
       const col = h('input', { type: 'color', value: colorNow, class: 'swatch', 'aria-label': `Cor de ${part.label}` })
       col.addEventListener('input', () => st.setPartColor(part.id, col.value))
-      const own = !!st.project.colors?.parts[part.id]
+      const own = !!(st.project.colors?.parts[partFamily(part.id)] ?? st.project.colors?.parts[part.id])
       partPop.append(
         h('div', { class: 'pop-head' }, h('b', null, part.label), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Fechar', onClick: hidePop }, '×')),
         h('div', { class: 'pop-meta mono' }, `${GROUP_NAME[part.group]} · ${part.instances.length} ${part.instances.length === 1 ? 'cópia' : 'cópias'}`),
