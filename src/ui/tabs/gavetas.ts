@@ -2,9 +2,10 @@ import { LEVEL_LABEL, hasValues, patchAt, resolveAt, scopeRoot, sourceOf, getIn,
 import type { PartGroup } from '../../model/part'
 import type { DrawerFront, DrawerHandle } from '../../model/types'
 import { tr } from '../../i18n'
+import { deriveNozzle } from '../../core/nozzle'
 import { hiddenInBay } from '../bayparts'
-import { h } from '../dom'
-import { btn, checkField, group, numField, pathModel, selectField, type Model } from '../fields'
+import { fmt, h } from '../dom'
+import { autoField, btn, checkField, group, numField, pathModel, selectField, type Model } from '../fields'
 import type { Store } from '../state'
 import { faceFillControls, type TabView } from './common'
 
@@ -122,8 +123,30 @@ export function gavetasTab(st: Store): TabView {
     ),
   )
 
+  const nzOf = () => deriveNozzle(st.project.nozzle, st.project.advanced)
+  const wallText = (n: number) => {
+    const el = document.querySelector('[data-live=floor]')
+    if (el && mk<number | 'auto'>('floorPerimeters').get() === 'auto') el.textContent = floorText(n)
+    return wallLine(n)
+  }
+  const wallLine = (n: number) => tr(`Parede final: ${fmt(nzOf().wall(n), 2)} mm`, `Final wall: ${fmt(nzOf().wall(n), 2)} mm`)
+  const floorText = (n: number) => {
+    const nz = nzOf()
+    const lh = nz.layerHeight
+    const t = lh * Math.ceil(Math.max(0.9, nz.wall(n)) / lh - 1e-9)
+    return tr(`Espessura do fundo: ${fmt(t, 2)} mm (mínimo 0,9 mm)`, `Floor thickness: ${fmt(t, 2)} mm (minimum 0.9 mm)`)
+  }
+  const floorPerim = () =>
+    autoField(mk<number | 'auto'>('floorPerimeters'), tr('Perímetros do fundo', 'Floor perimeters'), {
+      min: 1, max: 6, fallback: Number(mk<number>('perimeters').get()), autoText: tr('igual às paredes', 'same as walls'),
+      live: floorText, liveId: 'floor',
+      tip: tr(
+        'Espessura do fundo da gaveta, em perímetros. Automático usa o mesmo das paredes. Fundo mais grosso aguenta mais peso; mais fino economiza filamento (o mínimo é 0,9 mm).',
+        'Thickness of the drawer floor, in perimeters. Auto uses the same as the walls. A thicker floor holds more weight; a thinner one saves filament (the minimum is 0.9 mm).',
+      ),
+    })
   const face = (title: string, sub: 'sides' | 'floor') =>
-    group(title, ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer', pathModel(st, 'smallestItem') as never) as HTMLElement[]))
+    group(title, ...(sub === 'floor' ? [floorPerim()] : []), ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer', pathModel(st, 'smallestItem') as never) as HTMLElement[]))
 
   const focusToggle = h('label', { class: 'vis-check focus-toggle' }, h('input', { type: 'checkbox', checked: st.view.autoFocus, 'aria-label': tr('Mostrar só uma gaveta ao editar', 'Show only one drawer while editing'), onChange: (e: Event) => st.setView({ autoFocus: (e.target as HTMLInputElement).checked }) }), h('span', null, tr('Mostrar só uma gaveta no 3D enquanto edito', 'Show only one drawer in 3D while I edit')))
 
@@ -135,7 +158,7 @@ export function gavetasTab(st: Store): TabView {
     group(
       tr('Estrutura', 'Structure'),
       numField(mk<number>('perimeters'), tr('Perímetros das paredes', 'Wall perimeters'), {
-        min: 1, max: 6, slider: true,
+        min: 1, max: 6, slider: true, live: wallText,
         tip: tr(
           'Quantas linhas de filamento formam as paredes da gaveta. Mais perímetros deixam a parede mais forte e pesada; 2 basta para gavetas leves, 3–4 para ferramentas.',
           'How many filament lines make up the drawer walls. More perimeters are stronger and heavier; 2 is enough for light drawers, 3–4 for tools.',

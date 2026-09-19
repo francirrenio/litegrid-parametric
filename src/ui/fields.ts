@@ -72,6 +72,10 @@ export interface NumOpts {
   rebuild?: boolean
   hint?: string
   tip?: string
+  /** Text under the field that follows the value while it changes (e.g. the resulting wall thickness). */
+  live?: (v: number) => string
+  /** Marks the live text (data-live) so other fields can refresh it. */
+  liveId?: string
 }
 
 export function numField(m: Model<number>, label: string, o: NumOpts): HTMLElement {
@@ -84,10 +88,16 @@ export function numField(m: Model<number>, label: string, o: NumOpts): HTMLEleme
         value: clamp(m.get(), o.sliderMin ?? o.min, o.sliderMax ?? o.max),
       })
     : null
+  const liveEl = o.live ? h('p', { class: 'hint live', 'data-live': o.liveId ?? '' }) : null
+  const upd = (v: number) => {
+    if (liveEl && o.live) liveEl.textContent = o.live(v)
+  }
+  upd(m.get())
   input.addEventListener('input', () => {
     const v = input.valueAsNumber
     if (Number.isFinite(v) && v >= o.min && v <= o.max) {
       if (range) range.value = String(v)
+      upd(v)
       m.set(v, false)
     }
   })
@@ -97,12 +107,14 @@ export function numField(m: Model<number>, label: string, o: NumOpts): HTMLEleme
     v = clamp(v, o.min, o.max)
     input.value = String(v)
     if (range) range.value = String(v)
+    upd(v)
     m.set(v, !!o.rebuild)
   })
   if (range) {
     range.addEventListener('input', () => {
       const v = Number(range.value)
       input.value = String(v)
+      upd(v)
       m.set(v, false)
     })
     range.addEventListener('change', () => {
@@ -110,7 +122,9 @@ export function numField(m: Model<number>, label: string, o: NumOpts): HTMLEleme
     })
   }
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
-  return field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
+  const el = field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
+  if (liveEl) el.append(liveEl)
+  return el
 }
 
 export interface AutoOpts extends NumOpts {
@@ -123,6 +137,11 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
   const id = uid()
   const cur = m.get()
   const isAuto = cur === 'auto'
+  const liveEl = o.live ? h('p', { class: 'hint live', 'data-live': o.liveId ?? '' }) : null
+  const upd = (v: number | 'auto') => {
+    if (liveEl && o.live) liveEl.textContent = o.live(v === 'auto' ? (o.fallback ?? o.min) : v)
+  }
+  upd(cur)
   const input = h('input', {
     type: 'number', id, min: o.min, max: o.max, step: o.step ?? 1, inputmode: 'decimal', 'data-key': m.key,
     value: isAuto ? '' : cur, placeholder: o.autoText ?? tr('auto', 'auto'), disabled: isAuto,
@@ -133,10 +152,12 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
     if (chk.checked) {
       input.disabled = true
       input.value = ''
+      upd('auto')
       m.set('auto', !!o.rebuild)
     } else {
       input.disabled = false
       input.value = String(last)
+      upd(last)
       m.set(last, !!o.rebuild)
       input.focus()
     }
@@ -145,6 +166,7 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
     const v = input.valueAsNumber
     if (Number.isFinite(v) && v >= o.min && v <= o.max) {
       last = v
+      upd(v)
       m.set(v, false)
     }
   })
@@ -156,7 +178,9 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
   })
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
   const auto = h('label', { class: 'auto-chk' }, chk, h('span', null, tr('auto', 'auto')))
-  return field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
+  const el = field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint, tip: o.tip, model: m as Model<never> })
+  if (liveEl) el.append(liveEl)
+  return el
 }
 
 /** Empty = automatic (undefined), with a restore button. */

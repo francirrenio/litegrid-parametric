@@ -36,6 +36,7 @@ export function defaultSkin(overrides: Partial<SkinConfig> = {}): SkinConfig {
 export function defaultDrawer(overrides: Partial<DrawerConfig> = {}): DrawerConfig {
   return {
     perimeters: 2,
+    floorPerimeters: 'auto',
     sides: defaultFaceFill({ fill: 'perforated', openPercent: 40, solidUpTo: 12, reinforcement: 'auto' }),
     floor: defaultFaceFill({ fill: 'closed', reinforcement: 'auto' }),
     front: 'slope',

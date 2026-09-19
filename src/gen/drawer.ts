@@ -25,7 +25,10 @@ interface Group {
   load: Load
 }
 
-function floorThickness(nz: Nozzle, w: number, cfg: DrawerConfig, load: Load, W: number, D: number): number {
+/** Floor thickness in mm: the floor perimeters (or the wall's) rounded up to whole layers, never under 0.9 mm. */
+export function floorThickness(nz: Nozzle, w: number, cfg: DrawerConfig, load: Load, W: number, D: number): number {
+  const fp = cfg.floorPerimeters
+  if (typeof fp === 'number') w = nz.wall(fp)
   const lh = nz.layerHeight
   const layers = (mm: number) => lh * Math.ceil(mm / lh - 1e-9)
   const r = cfg.floor.reinforcement

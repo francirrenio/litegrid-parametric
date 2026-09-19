@@ -50,6 +50,8 @@ export type DrawerHandle = 'cutout' | 'bar' | 'none'
 
 export interface DrawerConfig {
   perimeters: number
+  /** Perimeters that set the floor thickness; 'auto' (or absent) = same as the walls. */
+  floorPerimeters?: number | 'auto'
   sides: FaceFill
   floor: FaceFill
   front: DrawerFront

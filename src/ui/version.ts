@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.4',
+    date: '2026-09-19',
+    pt: ['Os perímetros da gaveta mostram a espessura final da parede na hora.', 'Novo: perímetros do fundo da gaveta como configuração separada (automático = igual às paredes).'],
+    en: ['Drawer perimeters now show the final wall thickness right away.', 'New: drawer floor perimeters as a separate setting (auto = same as the walls).'],
+  },
+  {
     version: '0.2.3',
     date: '2026-09-19',
     pt: ['A vista 3D ganhou o controle de Explosão ao lado da abertura das gavetas.'],

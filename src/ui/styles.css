@@ -417,3 +417,5 @@ tr.dim-row { opacity: .45; }
 .ver-status.ok { color: var(--ok); }
 .ver-status.warn { color: var(--warn); }
 .ver-list { margin: 0 0 4px; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.5; }
+
+.hint.live { color: var(--accent); }
