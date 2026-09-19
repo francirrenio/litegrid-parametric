@@ -4,7 +4,8 @@ import { mat4RotX, mat4Translate, merge, translate, type Mat4, type Mesh, type V
 import type { Part } from '../model/part'
 import { makePart } from '../model/part'
 import type { DrawerConfig, Load, ProjectState } from '../model/types'
-import { deepMerge, hashString, prismAxis } from './drawer-prims'
+import { resolveForBay } from '../model/resolve'
+import { hashString, prismAxis } from './drawer-prims'
 import { frontMeshes, planFront } from './drawer-front'
 import {
   chamfers, faceHoles, frameOf, GROOVE_DEPTH, grooveRibs, reinforcement, resolveReinforcement, rims, topAt,
@@ -94,7 +95,7 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle)
   for (const bay of layout.bays) {
     const d = bay.drawer
     if (d.width < 20 || d.depth < 24 || d.height < 14) continue
-    const cfg = deepMerge(p.drawerDefaults, p.overrides[bay.id] ?? {})
+    const cfg = resolveForBay(p, bay.section - 1, bay.row - 1, bay.id)
     const load: Load = p.sections[bay.section - 1]?.rows[bay.row - 1]?.load ?? 'media'
     const key = JSON.stringify([d.width, d.height, d.depth, cfg, load])
     const g = groups.get(key)

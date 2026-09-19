@@ -3,7 +3,8 @@ import { planPlates, type Plate } from '../export'
 import { generate } from '../gen'
 import { defaultProject, PRESETS } from '../model/defaults'
 import type { GenerateResult } from '../model/part'
-import type { DrawerConfig, ProjectState } from '../model/types'
+import type { ProjectState } from '../model/types'
+import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
 import { outerBox, type Box } from './bounds'
 import { newId, ProjectRepo, type ProjectMeta } from './storage'
 
@@ -95,6 +96,7 @@ export class Store {
   bounds: Box
   busy = false
   sel: Selection = { bay: null, section: null }
+  scope: Scope = { ...GLOBAL_SCOPE }
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
@@ -208,11 +210,12 @@ export class Store {
     } catch {
       this.bounds = { lo: [0, 0, 0], hi: [this.project.width, this.project.height, this.project.depth] }
     }
-    const selBefore = `${this.sel.bay}|${this.sel.section}`
+    const selBefore = `${this.sel.bay}|${this.sel.section}|${JSON.stringify(this.scope)}`
     const bays = result.layout.bays
     if (this.sel.bay && !bays.some((b) => b.id === this.sel.bay)) this.sel = { bay: null, section: this.sel.section }
     if (this.sel.section != null && this.sel.section >= this.project.sections.length) this.sel = { bay: null, section: null }
-    const selNow = `${this.sel.bay}|${this.sel.section}`
+    this.scope = this.validScope(this.scope, bays)
+    const selNow = `${this.sel.bay}|${this.sel.section}|${JSON.stringify(this.scope)}`
     const selChanged = selNow !== selBefore
     this.busy = false
     this.emit('busy')
@@ -222,14 +225,45 @@ export class Store {
 
   /* selection / view */
 
-  selectBay(id: string | null): void {
+  private validScope(sc: Scope, bays: Array<{ id: string }>): Scope {
+    const p = this.project
+    if (sc.level === 'global') return sc
+    const sec = sc.section != null ? p.sections[sc.section] : undefined
+    if (!sec) return { ...GLOBAL_SCOPE }
+    if ((sc.level === 'row' || sc.level === 'bay') && (sc.row == null || !sec.rows[sc.row])) {
+      return { level: 'section', section: sc.section, row: null, bay: null }
+    }
+    if (sc.level === 'bay' && !bays.some((b) => b.id === sc.bay)) return { level: 'row', section: sc.section, row: sc.row, bay: null }
+    return sc
+  }
+
+  /** Clicking a drawer selects it and opens its parameters (unless openPanel is false). */
+  selectBay(id: string | null, openPanel = true): void {
     const bay = id ? this.result.layout.bays.find((b) => b.id === id) : undefined
-    this.sel = { bay: bay ? bay.id : null, section: bay ? bay.section - 1 : this.sel.section }
+    if (bay) {
+      this.sel = { bay: bay.id, section: bay.section - 1 }
+      this.scope = { level: 'bay', section: bay.section - 1, row: bay.row - 1, bay: bay.id }
+      if (openPanel && this.sideTab !== 'gavetas') {
+        this.sideTab = 'gavetas'
+        this.persistUi()
+        this.emit('tab')
+      }
+    } else {
+      this.sel = { bay: null, section: this.sel.section }
+      if (this.scope.level === 'bay') this.scope = { level: 'row', section: this.scope.section, row: this.scope.row, bay: null }
+    }
     this.emit('selection')
   }
 
   selectSection(i: number | null): void {
     this.sel = { bay: null, section: i }
+    if (this.sideTab === 'gavetas') this.scope = i == null ? { ...GLOBAL_SCOPE } : { level: 'section', section: i, row: null, bay: null }
+    this.emit('selection')
+  }
+
+  setScope(scope: Scope): void {
+    this.scope = scope
+    this.sel = { bay: scope.bay, section: scope.section }
     this.emit('selection')
   }
 
@@ -318,13 +352,14 @@ export class Store {
   /* per-drawer overrides */
 
   hasOverride(id: string): boolean {
-    return id in this.project.overrides
+    return hasValues(this.project.overrides[id])
   }
 
-  startOverride(id: string): void {
-    this.mutate((p) => {
-      p.overrides[id] = structuredClone(p.drawerDefaults) as Partial<DrawerConfig>
-    })
+  /** Removes one value (and any objects left empty) so it is inherited again. */
+  unsetPath(path: string): void {
+    setPath(this.project, path, undefined)
+    pruneEmpty(this.project as unknown as Record<string, unknown>, path)
+    this.changed(true)
   }
 
   resetOverride(id: string): void {

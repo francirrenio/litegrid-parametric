@@ -292,3 +292,27 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
   .name-input { font-size: 18px; }
   .tab { min-width: 52px; }
 }
+
+/* ── escopo dos parâmetros das gavetas ─────────────────────────── */
+.scope-tree { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; padding: 4px; background: var(--sunken); border: 1px solid var(--border-soft); border-radius: 10px; }
+.tree-btn { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; padding: 6px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--text-2); font-size: 12.5px; cursor: pointer; }
+.tree-btn:hover { background: var(--panel-3); }
+.tree-btn[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+.tree-btn.lvl1 { padding-left: 18px; }
+.tree-btn.lvl2 { padding-left: 32px; }
+.tree-label { font-weight: 500; }
+.tree-meta { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted-3); }
+.tree-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; align-self: center; }
+.tree-bays { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 10px 6px 46px; }
+.tree-bay { position: relative; padding: 4px 9px; font-size: 11.5px; }
+.tree-bay .tree-dot { position: absolute; top: -2px; right: -2px; }
+.banner-hint { flex-basis: 100%; }
+.lvl { flex: none; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; border: 1px solid var(--border-3); color: var(--muted-2); background: var(--panel-2); }
+.lvl.lvl-section { color: var(--info); border-color: var(--info-border); background: var(--info-bg); }
+.lvl.lvl-row { color: var(--ok); border-color: transparent; background: var(--ok-bg); }
+.lvl.lvl-bay { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.lvl.here { box-shadow: 0 0 0 1px currentColor inset; font-weight: 600; }
+.origin { display: inline-flex; align-items: center; gap: 4px; }
+.lvl-x { width: 18px; height: 18px; line-height: 1; padding: 0; border-radius: 50%; border: 1px solid var(--border-3); background: var(--btn); color: var(--text-3); font-size: 13px; cursor: pointer; }
+.lvl-x:hover { background: var(--panel-3); color: var(--text); }
+.field-head { gap: 8px; }

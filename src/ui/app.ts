@@ -133,7 +133,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
       const bayId = w.where && st.result.layout.bays.some((b) => b.id === w.where) ? w.where : null
       const secMatch = w.where ? /^Seção (\d+)/.exec(w.where) : null
       const go = () => {
-        if (bayId) st.selectBay(bayId)
+        if (bayId) st.selectBay(bayId, false)
         else if (secMatch) st.selectSection(Number(secMatch[1]) - 1)
         else st.setSideTab(tabOfWarning(w))
       }

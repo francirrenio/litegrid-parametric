@@ -7,11 +7,15 @@ export interface Row {
   divisions: number
   /** Expected load per drawer in this row. Does not affect the layout itself. */
   load?: 'leve' | 'media' | 'pesada'
+  /** Drawer settings that override the section and global ones for this row (partial DrawerConfig). */
+  drawer?: Record<string, unknown>
 }
 
 export interface Section {
   width: Size
   rows: Row[]
+  /** Drawer settings that override the global ones for this whole section (partial DrawerConfig). */
+  drawer?: Record<string, unknown>
 }
 
 export interface Clearances {

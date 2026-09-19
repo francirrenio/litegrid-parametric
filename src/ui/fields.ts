@@ -1,3 +1,4 @@
+import { LEVEL_LABEL, type Level } from '../model/resolve'
 import { h, icon, uid, type Child } from './dom'
 import type { Store } from './state'
 
@@ -6,6 +7,31 @@ export interface Model<T = unknown> {
   key: string
   get(): T
   set(v: T, rebuild: boolean): void
+  /** Where the value comes from when settings cascade; here = set at the level being edited. */
+  origin?(): { level: Level; here: boolean } | undefined
+  /** Drops the value set at the edited level so it is inherited again. */
+  reset?(): void
+}
+
+export function originBadge(m: Model<never>): HTMLElement | null {
+  const mm = m as Model<unknown>
+  const o = mm.origin?.()
+  if (!o) return null
+  const badge = h(
+    'span',
+    { class: 'lvl lvl-' + o.level + (o.here ? ' here' : ''), title: o.here ? 'Definido neste nível (' + LEVEL_LABEL[o.level] + ')' : 'Herdado de: ' + LEVEL_LABEL[o.level] },
+    LEVEL_LABEL[o.level],
+  )
+  const reset = mm.reset
+  if (o.here && o.level !== 'global' && reset) {
+    return h(
+      'span',
+      { class: 'origin' },
+      badge,
+      h('button', { type: 'button', class: 'lvl-x', title: 'Voltar a herdar', 'aria-label': 'Voltar a herdar', onClick: () => reset() }, '×'),
+    )
+  }
+  return badge
 }
 
 export function pathModel<T>(st: Store, path: string): Model<T> {
@@ -18,11 +44,11 @@ export function pathModel<T>(st: Store, path: string): Model<T> {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-export function field(label: string, control: Child, opts: { id?: string; hint?: string; extra?: Child } = {}): HTMLElement {
+export function field(label: string, control: Child, opts: { id?: string; hint?: string; extra?: Child; model?: Model<never> } = {}): HTMLElement {
   return h(
     'div',
     { class: 'field' },
-    h('div', { class: 'field-head' }, h('label', { class: 'lbl', for: opts.id }, label), opts.extra),
+    h('div', { class: 'field-head' }, h('label', { class: 'lbl', for: opts.id }, label), opts.extra, opts.model ? originBadge(opts.model) : null),
     control,
     opts.hint ? h('p', { class: 'hint' }, opts.hint) : null,
   )
@@ -76,7 +102,7 @@ export function numField(m: Model<number>, label: string, o: NumOpts): HTMLEleme
     })
   }
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
-  return field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint })
+  return field(label, h('div', { class: 'numrow' }, range, box), { id, hint: o.hint, model: m as Model<never> })
 }
 
 export interface AutoOpts extends NumOpts {
@@ -122,7 +148,7 @@ export function autoField(m: Model<number | 'auto'>, label: string, o: AutoOpts)
   })
   const box = h('div', { class: 'numbox' }, input, o.unit ? h('span', { class: 'unit' }, o.unit) : null)
   const auto = h('label', { class: 'auto-chk' }, chk, h('span', null, 'auto'))
-  return field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint })
+  return field(label, h('div', { class: 'numrow' }, box, auto), { id, hint: o.hint, model: m as Model<never> })
 }
 
 /** Empty = automatic (undefined), with a restore button. */
@@ -171,7 +197,7 @@ export function selectField<T extends string>(
   )
   sel.value = m.get()
   sel.addEventListener('change', () => m.set(sel.value as T, !!o.rebuild))
-  return field(label, sel, { id, hint: o.hint })
+  return field(label, sel, { id, hint: o.hint, model: m as Model<never> })
 }
 
 export function chips<T extends string | number>(
@@ -187,7 +213,7 @@ export function chips<T extends string | number>(
     }, t),
   )
   const group = h('div', { class: 'chips', role: 'group', 'aria-label': label }, btns, o.extra)
-  return field(label, group, { hint: o.hint })
+  return field(label, group, { hint: o.hint, model: m as Model<never> })
 }
 
 export function checkField(m: Model<boolean>, label: string, o: { rebuild?: boolean; hint?: string } = {}): HTMLElement {
@@ -196,7 +222,7 @@ export function checkField(m: Model<boolean>, label: string, o: { rebuild?: bool
   return h(
     'div',
     { class: 'field' },
-    h('label', { class: 'switch' }, input, h('span', { class: 'track', 'aria-hidden': 'true' }), h('span', null, label)),
+    h('div', { class: 'field-head' }, h('label', { class: 'switch' }, input, h('span', { class: 'track', 'aria-hidden': 'true' }), h('span', null, label)), originBadge(m as Model<never>)),
     o.hint ? h('p', { class: 'hint' }, o.hint) : null,
   )
 }
