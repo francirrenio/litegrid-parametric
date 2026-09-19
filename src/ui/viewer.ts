@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { Bay } from '../core/layout'
 import type { GenerateResult, Part, PartGroup } from '../model/part'
 import type { ProjectState } from '../model/types'
+import { stepOf } from './assembly'
 import { ALL_VISIBLE, isInstanceVisible, partColor, type Colors, type Visibility } from './appearance'
 import { instanceBox, partBox } from './bounds'
 import { levelOf, type BayClearance } from './clearance'
@@ -37,6 +38,7 @@ const GROUP_COLOR: Record<PartGroup, string> = {
 
 interface Inst {
   partId: string
+  step: number | null
   index: number
   node: THREE.Group
   base: THREE.Matrix4
@@ -223,7 +225,7 @@ export class Viewer {
           mtx[8]!, mtx[9]!, mtx[10]!, mtx[11]!, mtx[12]!, mtx[13]!, mtx[14]!, mtx[15]!,
         )
         this.content.add(node)
-        this.insts.push({ partId: part.id, index: i, node, base, group: part.group, center: local.clone().applyMatrix4(base) })
+        this.insts.push({ partId: part.id, step: stepOf(part.group, part.assemblyStep), index: i, node, base, group: part.group, center: local.clone().applyMatrix4(base) })
         const b = instanceBox(part, i)
         bb.expandByPoint(new THREE.Vector3(b.lo[0], b.lo[1], b.lo[2]))
         bb.expandByPoint(new THREE.Vector3(b.hi[0], b.hi[1], b.hi[2]))
@@ -452,7 +454,7 @@ export class Viewer {
       const off = new THREE.Vector3()
       if (o.explosao > 0) off.copy(it.center).sub(c).multiplyScalar(o.explosao * 1.1)
       if (it.group === 'gaveta') off.z += open
-      it.node.visible = isInstanceVisible(o.vis, it.group, it.partId, it.index, isoBox ? this.inBox(it.center, isoBox) : false)
+      it.node.visible = isInstanceVisible(o.vis, it.group, it.partId, it.index, isoBox ? this.inBox(it.center, isoBox) : false, it.step)
       t.makeTranslation(off.x, off.y, off.z)
       it.node.matrix.multiplyMatrices(t, it.base)
       it.node.matrixWorldNeedsUpdate = true

@@ -6,6 +6,7 @@ import type { GenerateResult } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
 import { ALL_VISIBLE, isPartHidden, partFamily, type Visibility } from './appearance'
+import { assemblySteps, rawStepAt } from './assembly'
 import { computeDiff, type DiffItem } from './diff'
 import { outerBox, type Box } from './bounds'
 import type { PartGroup } from '../model/part'
@@ -26,6 +27,8 @@ export interface ViewState {
   diff: boolean
   /** While editing drawer settings, show only one drawer of the edited group. */
   autoFocus: boolean
+  /** Assembly guide: current step (1-based) or null when off. */
+  montagem: number | null
   corte: boolean
   corteEixo: 'x' | 'y' | 'z'
   cortePos: number
@@ -117,7 +120,7 @@ export class Store {
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, montagem: null, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()
@@ -510,6 +513,10 @@ export class Store {
   }
 
   effectiveVis(): Visibility {
+    if (this.view.montagem !== null) {
+      const steps = assemblySteps(this.result.parts)
+      return { ...ALL_VISIBLE, maxStep: rawStepAt(steps, this.result.parts, this.view.montagem) }
+    }
     const b = this.focusBay()
     return b ? { ...this.vis, isolateBay: b } : this.vis
   }

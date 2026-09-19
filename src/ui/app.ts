@@ -1,6 +1,7 @@
 import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor, partFamily } from './appearance'
 import { hiddenInBay } from './bayparts'
 import { computeClearances, summarize } from './clearance'
+import { assemblySteps } from './assembly'
 import { createHeader } from './header'
 import type { PartGroup } from '../model/part'
 import { fmt, h, toast } from './dom'
@@ -59,6 +60,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const bGrid = toggle('Grade', 'grid')
   const bFolgas = toggle('Folgas', 'folgas')
   bFolgas.title = 'Contorna cada vão em verde, amarelo ou vermelho conforme a folga da gaveta e escreve as folgas: lateral | topo | fundo'
+  const bMont = h('button', { type: 'button', class: 'chip ov', onClick: () => st.setView({ montagem: st.view.montagem === null ? 1 : null }) }, 'Montagem')
+  bMont.title = 'Mostra a montagem passo a passo: as peças aparecem na ordem em que se encaixam'
   const bDiff = toggle('Alterações', 'diff')
   bDiff.title = 'Destaca em laranja o que mudou na última alteração (também pisca sozinho por alguns segundos)'
   const bCorte = toggle('Corte', 'corte')
@@ -72,8 +75,9 @@ export function mountApp(root: HTMLElement, st: Store): void {
       if (!visPanel.hidden) paintVis()
     },
   }, 'Peças')
-  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bDiff, bCorte, bFrame)
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bFolgas, bMont, bDiff, bCorte, bFrame)
   const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': 'Peça selecionada' })
+  const montBar = h('div', { class: 'mont-bar', hidden: true })
   const clearChip = h('div', { class: 'clear-chip', hidden: true, role: 'status' })
   const focusText = h('span', null)
   const focusChip = h('div', { class: 'focus-chip', hidden: true, role: 'status' }, focusText, h('button', { type: 'button', class: 'btn sm', onClick: () => st.setView({ autoFocus: false }) }, 'Ver tudo'))
@@ -99,7 +103,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
+  pane3d.append(toggles, montBar, clearChip, focusChip, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -302,6 +306,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
     bDiff.setAttribute('aria-pressed', String(v.diff))
     bFolgas.setAttribute('aria-pressed', String(v.folgas))
     clearChip.hidden = !v.folgas || v.tab !== '3d'
+    bMont.setAttribute('aria-pressed', String(v.montagem !== null))
+    paintMont()
     const fb = st.focusBay()
     focusChip.hidden = !fb || v.tab !== '3d'
     focusText.textContent = fb ? `Mostrando só a gaveta ${fb} enquanto você edita.` : ''
@@ -319,6 +325,30 @@ export function mountApp(root: HTMLElement, st: Store): void {
     lastTab = v.tab
     if (v.tab === 'mesa') pv.refresh()
     if (is3) requestAnimationFrame(() => viewer?.requestRender())
+  }
+
+  const paintMont = () => {
+    const n = st.view.montagem
+    montBar.hidden = n === null
+    if (n === null) return
+    const steps = assemblySteps(st.result.parts)
+    const cur = steps[Math.min(n, steps.length) - 1]
+    montBar.textContent = ''
+    if (!cur) {
+      montBar.append(h('span', null, 'Sem peças para montar.'))
+      return
+    }
+    const go = (k: number) => st.setView({ montagem: Math.max(1, Math.min(steps.length, k)) })
+    const prev = h('button', { type: 'button', class: 'btn sm', onClick: () => go(cur.n - 1) }, '‹ Anterior')
+    const next = h('button', { type: 'button', class: 'btn sm primary', onClick: () => go(cur.n + 1) }, 'Próximo ›')
+    if (cur.n === 1) prev.setAttribute('disabled', '')
+    if (cur.n === steps.length) next.setAttribute('disabled', '')
+    montBar.append(
+      h('div', { class: 'mont-head' }, h('b', null, `Passo ${cur.n} de ${steps.length}: ${cur.title}`), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Sair da montagem', title: 'Sair da montagem', onClick: () => st.setView({ montagem: null }) }, '×')),
+      h('p', null, cur.text),
+      h('p', { class: 'mont-parts' }, 'Peças até aqui: ' + steps.slice(0, cur.n).flatMap((s) => s.parts).join(' · ')),
+      h('div', { class: 'mont-nav' }, prev, next),
+    )
   }
 
   const paintResult = () => {

@@ -53,11 +53,14 @@ export interface Visibility {
   isolateOne: boolean
   /** Show only the drawer parts of this bay. A bay id survives regeneration; a part id does not (it embeds the settings). */
   isolateBay: string | null
+  /** Assembly guide: show only parts whose (raw) assembly step is at most this. */
+  maxStep?: number | null
 }
 
 export const ALL_VISIBLE: Visibility = { hiddenGroups: [], hiddenParts: [], isolate: null, isolateOne: true, isolateBay: null }
 
-export function isInstanceVisible(v: Visibility, group: PartGroup, partId: string, index: number, inBay = false): boolean {
+export function isInstanceVisible(v: Visibility, group: PartGroup, partId: string, index: number, inBay = false, step: number | null = null): boolean {
+  if (v.maxStep != null) return step !== null && step <= v.maxStep
   if (v.isolateBay) return group === 'gaveta' && inBay
   if (v.isolate) return partFamily(partId) === partFamily(v.isolate) && (!v.isolateOne || index === 0)
   return !v.hiddenGroups.includes(group) && !isPartHidden(v, partId)
