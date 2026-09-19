@@ -298,6 +298,7 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .tree-btn { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; padding: 6px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--text-2); font-size: 12.5px; cursor: pointer; }
 .tree-btn:hover { background: var(--panel-3); }
 .tree-btn[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent); }
+.chip.ov.on { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
 .tree-btn.lvl1 { padding-left: 18px; }
 .tree-btn.lvl2 { padding-left: 32px; }
 .tree-label { font-weight: 500; }

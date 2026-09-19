@@ -189,7 +189,17 @@ export function mountApp(root: HTMLElement, st: Store): void {
     )
     iso.value = st.vis.isolate ?? ''
     visPanel.append(h('div', { class: 'vis-iso' }, h('span', { class: 'lbl' }, 'Mostrar só'), iso, h('label', { class: 'vis-check' }, one, h('span', null, 'só uma cópia'))))
-    if (anyHidden(st.vis)) visPanel.append(h('button', { type: 'button', class: 'btn sm', onClick: () => { st.showAll(); paintVis() } }, 'Mostrar tudo'))
+    const label = (id: string) => parts.find((p) => p.id === id)?.label ?? id
+    if (st.vis.hiddenParts.length > 0) {
+      visPanel.append(h('div', { class: 'vis-title' }, 'Escondidas'))
+      for (const id of st.vis.hiddenParts) {
+        visPanel.append(
+          h('div', { class: 'vis-row' }, h('span', { class: 'vis-check' }, label(id)), h('button', { type: 'button', class: 'btn sm', onClick: () => { st.togglePart(id) } }, 'Mostrar')),
+        )
+      }
+    }
+    if (st.vis.isolate) visPanel.append(h('p', { class: 'hint' }, `Mostrando só: ${label(st.vis.isolate)}`))
+    if (anyHidden(st.vis)) visPanel.append(h('button', { type: 'button', class: 'btn sm', onClick: () => { st.showAll() } }, 'Mostrar tudo'))
   }
 
   const hidePop = () => {
@@ -228,8 +238,18 @@ export function mountApp(root: HTMLElement, st: Store): void {
   })
 
   let lastTab: ViewTab | null = null
+  let lastVisSig = ''
   const paintView = () => {
     const v = st.view
+    const sig = JSON.stringify(st.vis)
+    const hiddenN = st.vis.isolate ? 1 : st.vis.hiddenGroups.length + st.vis.hiddenParts.length
+    bVis.textContent = hiddenN ? `Peças · ${hiddenN} ${hiddenN === 1 ? 'oculta' : 'ocultas'}` : 'Peças'
+    bVis.classList.toggle('on', hiddenN > 0)
+    bVis.setAttribute('aria-pressed', String(hiddenN > 0))
+    if (sig !== lastVisSig) {
+      lastVisSig = sig
+      if (!visPanel.hidden) paintVis()
+    }
     vpSelect.value = v.tab
     const is3 = v.tab === '3d' || v.tab === 'explodida'
     pane3d.hidden = !is3
