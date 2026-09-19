@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.3',
+    date: '2026-09-19',
+    pt: ['A vista 3D ganhou o controle de Explosão ao lado da abertura das gavetas.'],
+    en: ['The 3D view now has an Explosion control next to the drawer opening.'],
+  },
+  {
     version: '0.2.2',
     date: '2026-09-19',
     pt: ['"Menor item guardado" saiu da aba Projeto e aparece junto do preenchimento, só quando a parede é Vazada.'],

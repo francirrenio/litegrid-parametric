@@ -37,6 +37,8 @@ export interface ViewState {
   cortePos: number
   abertura: number
   explosao: number
+  /** Explosion amount used in the plain 3D view (starts at 0). */
+  explosao3d: number
   plate: number
 }
 
@@ -123,7 +125,7 @@ export class Store {
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
-    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, montagem: null, medir: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, plate: 0,
+    tab: '3d', wire: false, cotas: false, grid: true, folgas: false, diff: false, autoFocus: true, montagem: null, medir: false, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0.6, explosao3d: 0, plate: 0,
   }
   readonly repo: ProjectRepo
   private listeners = new Map<Topic, Set<() => void>>()

@@ -104,7 +104,9 @@ export function mountApp(root: HTMLElement, st: Store): void {
   }
   const sOpen = slider(tr('Abertura das gavetas', 'Drawer opening'), () => st.view.abertura, (v) => st.setView({ abertura: v }))
   const sExp = slider(tr('Explosão', 'Explosion'), () => Math.round(st.view.explosao * 100), (v) => st.setView({ explosao: v / 100 }))
+  const sExp3 = slider(tr('Explosão', 'Explosion'), () => Math.round(st.view.explosao3d * 100), (v) => st.setView({ explosao3d: v / 100 }))
   tabsRow.insertBefore(sOpen.wrap, busy)
+  tabsRow.insertBefore(sExp3.wrap, busy)
   tabsRow.insertBefore(sExp.wrap, busy)
   const sCut = slider(tr('Posição do corte', 'Section position'), () => st.view.cortePos, (v) => st.setView({ cortePos: v }))
   const axis = h(
@@ -184,7 +186,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
     return {
       wire: v.wire, cotas: v.cotas, grid: v.grid, folgas: v.folgas, corte: v.corte, corteEixo: v.corteEixo, cortePos: v.cortePos,
       abertura: v.tab === '3d' ? v.abertura : 0,
-      explosao: v.tab === 'explodida' ? v.explosao : 0,
+      explosao: v.tab === 'explodida' ? v.explosao : v.tab === '3d' ? v.explosao3d : 0,
       selectedBay: st.sel.bay,
       vis: st.effectiveVis(),
       colors: st.project.colors ?? { groups: {}, parts: {} },
@@ -333,6 +335,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
     paintDiff()
     bCorte.setAttribute('aria-pressed', String(v.corte))
     sOpen.wrap.hidden = v.tab !== '3d'
+    sExp3.wrap.hidden = v.tab !== '3d'
+    sExp3.sync()
     sExp.wrap.hidden = v.tab !== 'explodida'
     cutRow.hidden = !v.corte
     axis.value = v.corteEixo
