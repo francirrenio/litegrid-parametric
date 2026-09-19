@@ -1,3 +1,4 @@
+import { translate } from '../geom/mesh'
 import { deriveNozzle } from '../core/nozzle'
 import type { GenerateResult, Part } from '../model/part'
 import type { ProjectState } from '../model/types'
@@ -35,6 +36,15 @@ export function plateStl(plate: Plate, parts: Part[]): Blob {
 
 export function plate3mf(plate: Plate, parts: Part[]): Blob {
   return threeMfBlob(plateMeshes(plate, parts))
+}
+
+/** Every bed in one 3MF, side by side along X with a gap, each object named after its bed. */
+export function allPlates3mf(plates: Plate[], parts: Part[], bedX: number): Blob {
+  const step = bedX + 30
+  const items = plates.flatMap((pl, i) =>
+    plateMeshes(pl, parts).map((m) => ({ name: `Mesa ${pl.index} - ${m.name}`, mesh: translate(m.mesh, i * step, 0, 0) })),
+  )
+  return threeMfBlob(items)
 }
 
 export function manifestJson(result: GenerateResult): string {

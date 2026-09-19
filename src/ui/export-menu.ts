@@ -1,6 +1,6 @@
 import { tr } from '../i18n'
 import {
-  assemblyGuide, manifestJson, plate3mf, plateStl, projectZip, slicerProfileText, slug, zipStore,
+  allPlates3mf, assemblyGuide, manifestJson, plate3mf, plateStl, projectZip, slicerProfileText, slug, zipStore,
 } from '../export'
 import { planPlates } from '../export'
 import { generate } from '../gen'
@@ -45,6 +45,7 @@ export function createExportMenu(st: Store): HTMLElement {
         menuItem(tr('3MF da mesa atual', '3MF of current bed'), guard(tr('3MF da mesa', 'bed 3MF'), () => {
           if (plate) download(plate3mf(plate, r.parts), `${base}-mesa-${n}.3mf`, 'model/3mf')
         }), { disabled: !plate, hint: plate ? tr(`mesa ${n}`, `bed ${n}`) : '' }),
+        menuItem(tr('3MF com todas as mesas', '3MF with all beds'), guard(tr('3MF de todas as mesas', 'all-beds 3MF'), () => download(allPlates3mf(st.plates, r.parts, p.printBed.x), `${base}-todas-as-mesas.3mf`, 'model/3mf')), { disabled: st.plates.length === 0, hint: st.plates.length ? tr(`${st.plates.length} mesas, lado a lado`, `${st.plates.length} beds, side by side`) : '' }),
         menuHeading(tr('Antes de imprimir tudo', 'Before printing everything')),
         menuItem(tr('Peça de teste (STL, uma mesa)', 'Test piece (STL, one bed)'), guard(tr('peça de teste', 'test piece'), () => {
           const test = generate({ ...p, includeTestPiece: true }).parts.filter((x) => x.group === 'teste')
