@@ -11,6 +11,7 @@ export { planPlates, plateMeshes, plateKey } from './plates'
 export type { Plate, PlateItem, PlateOverride, PlateOverrides } from './plates'
 export { stlBlob } from './stl'
 export { threeMfBlob } from './threemf'
+export { orca3mf } from './orca3mf'
 
 const GROUP_DIR: Record<Part['group'], string> = {
   gabinete: 'gabinete',

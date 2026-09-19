@@ -2,10 +2,10 @@ import type { NamedMesh } from './stl'
 import { zipStore } from './zip'
 
 const ESC: Record<string, string> = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }
-const esc = (s: string) => s.replace(/[<>&"]/g, (c) => ESC[c]!)
-const r = (x: number) => +x.toFixed(4)
+export const esc = (s: string) => s.replace(/[<>&"]/g, (c) => ESC[c]!)
+export const r = (x: number) => +x.toFixed(4)
 
-function meshObject(id: number, name: string, v: number[]): string {
+export function meshObject(id: number, name: string, v: number[]): string {
   const map = new Map<string, number>()
   const verts: string[] = []
   const tri: number[] = []
