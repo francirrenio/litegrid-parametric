@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { Bay } from '../core/layout'
 import type { GenerateResult, Part, PartGroup } from '../model/part'
 import type { ProjectState } from '../model/types'
+import { ALL_VISIBLE, isInstanceVisible, partColor, type Colors, type Visibility } from './appearance'
 import { instanceBox, partBox } from './bounds'
 import { fmt } from './dom'
 
@@ -18,6 +19,8 @@ export interface ViewOptions {
   /** 0–1: exploded view factor. */
   explosao: number
   selectedBay: string | null
+  vis: Visibility
+  colors: Colors
 }
 
 const GROUP_COLOR: Record<PartGroup, string> = {
@@ -30,6 +33,8 @@ const GROUP_COLOR: Record<PartGroup, string> = {
 }
 
 interface Inst {
+  partId: string
+  index: number
   node: THREE.Group
   base: THREE.Matrix4
   group: PartGroup
@@ -61,7 +66,9 @@ export class Viewer {
   private framed = false
   private opts: ViewOptions = {
     wire: false, cotas: false, grid: true, corte: false, corteEixo: 'x', cortePos: 50, abertura: 0, explosao: 0, selectedBay: null,
+    vis: { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }, colors: { groups: {}, parts: {} },
   }
+  private partInfo = new Map<string, { mat: THREE.MeshStandardMaterial; part: Part }>()
   private grid: THREE.GridHelper | null = null
   private cubeScene = new THREE.Scene()
   private cubeCam = new THREE.PerspectiveCamera(32, 1, 0.1, 20)
@@ -74,6 +81,7 @@ export class Viewer {
   private ray = new THREE.Raycaster()
   private down: { x: number; y: number } | null = null
   onPickBay: (id: string | null) => void = () => {}
+  onPickPart: (id: string | null, clientX: number, clientY: number) => void = () => {}
 
   constructor(host: HTMLElement) {
     this.el = host
@@ -161,6 +169,8 @@ export class Viewer {
     this.insts = []
     this.materials = []
     this.edgeMats = []
+    this.partInfo.clear()
+    this.opts.colors = project.colors ?? { groups: {}, parts: {} }
     this.bays = result.layout.bays
     const W = project.width, H = project.height, D = project.depth
     this.cabinet.set(W, H, D)
@@ -184,6 +194,7 @@ export class Viewer {
         clippingPlanes: [this.clip], polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
       })
       this.materials.push(mat)
+      this.partInfo.set(part.id, { mat, part })
       const edges = n / 9 <= EDGE_TRI_LIMIT ? new THREE.EdgesGeometry(geo, 28) : null
       const emat = edges ? edgeMat() : null
       const pb = partBox(part)
@@ -191,6 +202,7 @@ export class Viewer {
       part.instances.forEach((mtx, i) => {
         const node = new THREE.Group()
         node.matrixAutoUpdate = false
+        node.userData.partId = part.id
         node.add(new THREE.Mesh(geo, mat))
         if (edges && emat) node.add(new THREE.LineSegments(edges, emat))
         const base = new THREE.Matrix4().set(
@@ -198,7 +210,7 @@ export class Viewer {
           mtx[8]!, mtx[9]!, mtx[10]!, mtx[11]!, mtx[12]!, mtx[13]!, mtx[14]!, mtx[15]!,
         )
         this.content.add(node)
-        this.insts.push({ node, base, group: part.group, center: local.clone().applyMatrix4(base) })
+        this.insts.push({ partId: part.id, index: i, node, base, group: part.group, center: local.clone().applyMatrix4(base) })
         const b = instanceBox(part, i)
         bb.expandByPoint(new THREE.Vector3(b.lo[0], b.lo[1], b.lo[2]))
         bb.expandByPoint(new THREE.Vector3(b.hi[0], b.hi[1], b.hi[2]))
@@ -244,7 +256,7 @@ export class Viewer {
   }
 
   private colorOf(p: Part): string {
-    return p.group === 'skin' && p.color ? p.color : GROUP_COLOR[p.group]
+    return partColor(this.opts.colors, p)
   }
 
   private selMesh: THREE.Object3D | null = null
@@ -303,6 +315,7 @@ export class Viewer {
       s.wireframe = o.wire
     }
     for (const m of this.edgeMats) m.visible = !o.wire
+    for (const { mat, part } of this.partInfo.values()) mat.color.set(partColor(o.colors, part))
     if (this.dimLines) this.dimLines.visible = o.cotas
     if (this.grid) this.grid.visible = o.grid
     this.labelHost.style.display = o.cotas ? '' : 'none'
@@ -326,6 +339,7 @@ export class Viewer {
       const off = new THREE.Vector3()
       if (o.explosao > 0) off.copy(it.center).sub(c).multiplyScalar(o.explosao * 1.1)
       if (it.group === 'gaveta') off.z += open
+      it.node.visible = isInstanceVisible(o.vis, it.group, it.partId, it.index)
       t.makeTranslation(off.x, off.y, off.z)
       it.node.matrix.multiplyMatrices(t, it.base)
       it.node.matrixWorldNeedsUpdate = true
@@ -508,12 +522,17 @@ export class Viewer {
     this.ray.setFromCamera(this.ndc(e), this.camera)
     this.scene.updateMatrixWorld(true)
     const hit = this.ray.intersectObjects(this.pickers.children, false)[0]
+    const shown = this.insts.filter((i) => i.node.visible).map((i) => i.node)
+    const partHit = this.ray.intersectObjects(shown, true).find((h) => h.object instanceof THREE.Mesh)
+    let o: THREE.Object3D | null = partHit?.object ?? null
+    while (o && !o.userData.partId) o = o.parent
+    this.onPickPart((o?.userData.partId as string | undefined) ?? null, e.clientX, e.clientY)
     this.onPickBay((hit?.object.userData.bay as string | undefined) ?? null)
   }
 
   private recentre(e: MouseEvent): void {
     this.ray.setFromCamera(this.ndc(e), this.camera)
-    const hit = this.ray.intersectObjects([...this.content.children, ...this.pickers.children], true)[0]
+    const hit = this.ray.intersectObjects([...this.content.children.filter((c) => c.visible), ...this.pickers.children], true)[0]
     if (hit) {
       this.controls.target.copy(hit.point)
       this.controls.update()

@@ -1,7 +1,8 @@
 import { manifestJson, partStl, slug } from '../../export'
 import type { Part } from '../../model/part'
 import { btn } from '../fields'
-import { download, fmt, h, toast } from '../dom'
+import { partColor } from '../appearance'
+import { download, fmt, h, icon, toast } from '../dom'
 import { tabOfWarning, type Store } from '../state'
 import type { TabView } from './common'
 
@@ -38,29 +39,36 @@ export function pecasTab(st: Store): TabView {
       )
     }
     content.textContent = ''
-    content.append(currentSub === 'lista' ? list(st) : currentSub === 'manifesto' ? manifest(st) : suggestions(st))
+    content.append(currentSub === 'lista' ? list(st, paint) : currentSub === 'manifesto' ? manifest(st) : suggestions(st))
   }
   paint()
   return { el: host, refresh: paint }
 }
 
-function list(st: Store): HTMLElement {
+function list(st: Store, repaint: () => void): HTMLElement {
   const parts = st.result.parts
   if (parts.length === 0) {
     return h('div', { class: 'empty' }, h('b', null, 'Nenhuma peça gerada ainda'), h('p', null, 'As peças aparecem aqui conforme os geradores ficam disponíveis para este projeto.'))
   }
   const total = parts.reduce((s, p) => s + p.instances.length, 0)
-  const rows = parts.map((p) =>
-    h(
+  const rows = parts.map((p) => {
+    const hidden = st.vis.hiddenParts.includes(p.id) || st.vis.hiddenGroups.includes(p.group)
+    const swatch = h('input', { type: 'color', class: 'swatch', value: partColor(st.project.colors, p), 'aria-label': `Cor de ${p.label}` })
+    swatch.addEventListener('input', () => st.setPartColor(p.id, swatch.value))
+    const eye = h('button', {
+      type: 'button', class: 'btn sm ghost icon-only', title: hidden ? 'Mostrar peça' : 'Esconder peça', 'aria-label': hidden ? `Mostrar ${p.label}` : `Esconder ${p.label}`,
+      'aria-pressed': String(!hidden), onClick: () => { st.togglePart(p.id); repaint() },
+    }, icon(hidden ? 'eyeoff' : 'eye', 15))
+    return h(
       'tr',
-      null,
-      h('td', null, h('span', { class: `dot g-${p.group}`, title: GROUP_LABEL[p.group] }), h('span', { class: 'plabel' }, p.label), p.note ? h('div', { class: 'hint' }, p.note) : null),
+      { class: hidden ? 'dim-row' : '' },
+      h('td', null, h('div', { class: 'plabel-row' }, swatch, h('span', { class: 'plabel' }, p.label), eye), p.note ? h('div', { class: 'hint' }, p.note) : null),
       h('td', null, GROUP_LABEL[p.group]),
       h('td', { class: 'mono num' }, `${p.instances.length}`),
       h('td', { class: 'mono' }, p.size.map((v) => fmt(v, 1)).join(' × ')),
       h('td', null, btn('', () => download(partStl(p), `${slug(p.id)}.stl`, 'model/stl'), { icon: 'download', sm: true, kind: 'ghost', title: `Baixar STL de ${p.label}` })),
-    ),
-  )
+    )
+  })
   return h(
     'div',
     null,

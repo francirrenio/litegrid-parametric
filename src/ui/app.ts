@@ -1,3 +1,4 @@
+import { GROUP_DEFAULT, GROUP_NAME, anyHidden, partColor } from './appearance'
 import { createHeader } from './header'
 import { fmt, h, toast } from './dom'
 import { createPlatesView } from './plates-view'
@@ -55,7 +56,17 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const bGrid = toggle('Grade', 'grid')
   const bCorte = toggle('Corte', 'corte')
   const bFrame = h('button', { type: 'button', class: 'chip ov', title: 'Enquadrar o gabinete (ou dê duplo clique)', onClick: () => viewer?.frame() }, 'Enquadrar')
-  const toggles = h('div', { class: 'ov-toggles' }, bWire, bCotas, bGrid, bCorte, bFrame)
+  const visPanel = h('div', { class: 'vis-panel', hidden: true })
+  const bVis = h('button', {
+    type: 'button', class: 'chip ov', 'aria-expanded': 'false', title: 'Mostrar, esconder e colorir peças',
+    onClick: () => {
+      visPanel.hidden = !visPanel.hidden
+      bVis.setAttribute('aria-expanded', String(!visPanel.hidden))
+      if (!visPanel.hidden) paintVis()
+    },
+  }, 'Peças')
+  const toggles = h('div', { class: 'ov-toggles' }, bVis, bWire, bCotas, bGrid, bCorte, bFrame)
+  const partPop = h('div', { class: 'part-pop', hidden: true, role: 'dialog', 'aria-label': 'Peça selecionada' })
 
   const slider = (label: string, get: () => number, set: (v: number) => void, max = 100, step = 1) => {
     const input = h('input', { type: 'range', min: 0, max, step, value: get(), 'aria-label': label })
@@ -78,7 +89,7 @@ export function mountApp(root: HTMLElement, st: Store): void {
   )
   const cutRow = h('div', { class: 'ov-cut' }, sCut.wrap, axis)
   const ovBottom = h('div', { class: 'ov-bottom' }, cutRow)
-  pane3d.append(toggles, ovBottom, emptyMsg)
+  pane3d.append(toggles, visPanel, partPop, ovBottom, emptyMsg)
 
   const stage = h('div', { class: 'stage' }, pane3d, pane2d, paneMesa)
 
@@ -147,8 +158,74 @@ export function mountApp(root: HTMLElement, st: Store): void {
       abertura: v.tab === '3d' ? v.abertura : 0,
       explosao: v.tab === 'explodida' ? v.explosao : 0,
       selectedBay: st.sel.bay,
+      vis: st.vis,
+      colors: st.project.colors ?? { groups: {}, parts: {} },
     }
   }
+
+  /* show, hide and colour */
+  const paintVis = () => {
+    visPanel.textContent = ''
+    const parts = st.result.parts
+    const groups = [...new Set(parts.map((p) => p.group))]
+    const colors = st.project.colors
+    visPanel.append(h('div', { class: 'vis-title' }, 'Mostrar e cores'))
+    for (const g of groups) {
+      const cur = colors?.groups[g] ?? GROUP_DEFAULT[g]
+      const chk = h('input', { type: 'checkbox', checked: !st.vis.hiddenGroups.includes(g), 'aria-label': `Mostrar ${GROUP_NAME[g]}` })
+      chk.addEventListener('change', () => st.toggleGroup(g))
+      const col = h('input', { type: 'color', value: cur, class: 'swatch', 'aria-label': `Cor de ${GROUP_NAME[g]}` })
+      col.addEventListener('input', () => st.setGroupColor(g, col.value))
+      const reset = h('button', { type: 'button', class: 'lvl-x', title: 'Voltar à cor padrão', 'aria-label': 'Voltar à cor padrão', onClick: () => { st.setGroupColor(g, null); paintVis() } }, '×')
+      visPanel.append(h('div', { class: 'vis-row' }, h('label', { class: 'vis-check' }, chk, h('span', null, GROUP_NAME[g])), col, colors?.groups[g] ? reset : null))
+    }
+    const one = h('input', { type: 'checkbox', checked: st.vis.isolateOne, 'aria-label': 'Só uma cópia' })
+    one.addEventListener('change', () => { st.setIsolate(st.vis.isolate, one.checked); paintVis() })
+    const iso = h(
+      'select',
+      { 'aria-label': 'Mostrar só uma peça', onChange: (e: Event) => { st.setIsolate((e.target as HTMLSelectElement).value || null); paintVis() } },
+      h('option', { value: '' }, 'todas as peças'),
+      parts.map((p) => h('option', { value: p.id, selected: p.id === st.vis.isolate }, `${p.label} (${p.instances.length})`)),
+    )
+    iso.value = st.vis.isolate ?? ''
+    visPanel.append(h('div', { class: 'vis-iso' }, h('span', { class: 'lbl' }, 'Mostrar só'), iso, h('label', { class: 'vis-check' }, one, h('span', null, 'só uma cópia'))))
+    if (anyHidden(st.vis)) visPanel.append(h('button', { type: 'button', class: 'btn sm', onClick: () => { st.showAll(); paintVis() } }, 'Mostrar tudo'))
+  }
+
+  const hidePop = () => {
+    partPop.hidden = true
+  }
+  const showPop = (id: string | null, clientX: number, clientY: number) => {
+    const part = id ? st.result.parts.find((p) => p.id === id) : undefined
+    if (!part) return hidePop()
+    partPop.textContent = ''
+    const colorNow = partColor(st.project.colors, part)
+    const col = h('input', { type: 'color', value: colorNow, class: 'swatch', 'aria-label': `Cor de ${part.label}` })
+    col.addEventListener('input', () => st.setPartColor(part.id, col.value))
+    const own = !!st.project.colors?.parts[part.id]
+    partPop.append(
+      h('div', { class: 'pop-head' }, h('b', null, part.label), h('button', { type: 'button', class: 'lvl-x', 'aria-label': 'Fechar', onClick: hidePop }, '×')),
+      h('div', { class: 'pop-meta mono' }, `${GROUP_NAME[part.group]} · ${part.instances.length} ${part.instances.length === 1 ? 'cópia' : 'cópias'}`),
+      h('div', { class: 'pop-row' }, h('span', { class: 'lbl' }, 'Cor'), col, own ? h('button', { type: 'button', class: 'btn sm ghost', onClick: () => { st.setPartColor(part.id, null); showPop(id, clientX, clientY) } }, 'Cor do grupo') : null),
+      h(
+        'div',
+        { class: 'pop-acts' },
+        h('button', { type: 'button', class: 'btn sm', onClick: () => { st.togglePart(part.id); hidePop() } }, 'Esconder'),
+        h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, true); hidePop() } }, 'Só esta'),
+        part.instances.length > 1 ? h('button', { type: 'button', class: 'btn sm', onClick: () => { st.setIsolate(part.id, false); hidePop() } }, 'Só as iguais') : null,
+      ),
+    )
+    const r = pane3d.getBoundingClientRect()
+    partPop.hidden = false
+    const w = partPop.offsetWidth || 240
+    const hh = partPop.offsetHeight || 150
+    partPop.style.left = `${Math.max(8, Math.min(r.width - w - 8, clientX - r.left + 14))}px`
+    partPop.style.top = `${Math.max(8, Math.min(r.height - hh - 8, clientY - r.top + 14))}px`
+  }
+  if (viewer) viewer.onPickPart = showPop
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hidePop()
+  })
 
   let lastTab: ViewTab | null = null
   const paintView = () => {
@@ -184,6 +261,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
     pv.refresh()
     paintCards()
     paintWarns()
+    if (!visPanel.hidden) paintVis()
+    hidePop()
   }
 
   st.on('view', paintView)

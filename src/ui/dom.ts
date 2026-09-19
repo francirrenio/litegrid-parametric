@@ -63,6 +63,8 @@ const ICONS: Record<string, string> = {
   trash: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   reset: '<path d="M4 12a8 8 0 108-8M4 4v5h5"/>',
+  eye: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeoff: '<path d="M3 3l18 18M10.6 5.7A9.9 9.9 0 0112 5.5C18.4 5.5 22 12 22 12a17 17 0 01-3.2 3.9M6.3 6.4A17 17 0 002 12s3.6 6.5 10 6.5a9.6 9.6 0 004-.9"/>',
   frame: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
   chevron: '<path d="M9 6l6 6-6 6"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',

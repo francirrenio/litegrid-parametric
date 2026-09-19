@@ -5,7 +5,9 @@ import { defaultProject, PRESETS } from '../model/defaults'
 import type { GenerateResult } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { GLOBAL_SCOPE, hasValues, pruneEmpty, type Scope } from '../model/resolve'
+import { ALL_VISIBLE, type Visibility } from './appearance'
 import { outerBox, type Box } from './bounds'
+import type { PartGroup } from '../model/part'
 import { newId, ProjectRepo, type ProjectMeta } from './storage'
 
 export type ViewTab = '3d' | '2d' | 'mesa' | 'explodida'
@@ -98,6 +100,7 @@ export class Store {
   busy = false
   sel: Selection = { bay: null, section: null }
   scope: Scope = { ...GLOBAL_SCOPE }
+  vis: Visibility = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
   sideTab: SideTab = 'projeto'
   theme: 'dark' | 'light' = 'dark'
   view: ViewState = {
@@ -350,6 +353,52 @@ export class Store {
     })
   }
 
+  /* what is shown and how it is coloured (view only; colours are saved with the project) */
+
+  private visChanged(): void {
+    this.emit('view')
+  }
+
+  toggleGroup(g: PartGroup): void {
+    const v = this.vis
+    v.hiddenGroups = v.hiddenGroups.includes(g) ? v.hiddenGroups.filter((x) => x !== g) : [...v.hiddenGroups, g]
+    this.visChanged()
+  }
+
+  togglePart(id: string): void {
+    const v = this.vis
+    v.hiddenParts = v.hiddenParts.includes(id) ? v.hiddenParts.filter((x) => x !== id) : [...v.hiddenParts, id]
+    this.visChanged()
+  }
+
+  /** Shows only one part type (one copy or all copies); null goes back to the normal view. */
+  setIsolate(id: string | null, one = this.vis.isolateOne): void {
+    this.vis.isolate = id
+    this.vis.isolateOne = one
+    this.visChanged()
+  }
+
+  showAll(): void {
+    this.vis = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
+    this.visChanged()
+  }
+
+  setPartColor(id: string, hex: string | null): void {
+    const c = (this.project.colors ??= { groups: {}, parts: {} })
+    if (hex) c.parts[id] = hex
+    else delete c.parts[id]
+    this.scheduleSave()
+    this.visChanged()
+  }
+
+  setGroupColor(g: PartGroup, hex: string | null): void {
+    const c = (this.project.colors ??= { groups: {}, parts: {} })
+    if (hex) c.groups[g] = hex
+    else delete c.groups[g]
+    this.scheduleSave()
+    this.visChanged()
+  }
+
   /* per-drawer overrides */
 
   hasOverride(id: string): boolean {
@@ -381,6 +430,7 @@ export class Store {
     this.projectId = id
     this.project = project
     this.sel = { bay: null, section: null }
+    this.vis = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
     this.view.plate = 0
     this.repo.save(id, project)
     this.repo.setCurrentId(id)

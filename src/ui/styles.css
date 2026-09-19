@@ -337,3 +337,21 @@ pre.json { margin: 0; max-height: 46vh; overflow: auto; padding: 12px; backgroun
 .bed-dim input { width: 72px; padding: 6px 8px; background: var(--sunken); border: 1px solid var(--border-3); border-radius: 8px; color: var(--text); font-family: var(--font-mono); font-size: 12px; }
 .bed-picker.compact { margin-left: auto; }
 .bed-picker.compact select { flex: 0 1 auto; width: auto; max-width: 260px; padding: 5px 8px; font-size: 12px; }
+
+/* mostrar/esconder e cores */
+.swatch { width: 28px; height: 22px; padding: 0; border: 1px solid var(--border-3); border-radius: 6px; background: none; cursor: pointer; flex: none; }
+.vis-panel { position: absolute; top: 12px; right: 118px; width: 250px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; z-index: 6; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.vis-panel[hidden], .part-pop[hidden] { display: none; }
+.vis-title { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-2); }
+.vis-row { display: flex; align-items: center; gap: 8px; }
+.vis-check { display: inline-flex; align-items: center; gap: 8px; flex: 1; font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.vis-iso { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--border-soft); }
+.vis-iso select { font-size: 12px; padding: 6px 8px; }
+.part-pop { position: absolute; z-index: 7; width: 240px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.pop-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.pop-meta { font-size: 11px; color: var(--muted-3); }
+.pop-row { display: flex; align-items: center; gap: 8px; }
+.pop-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.plabel-row { display: flex; align-items: center; gap: 8px; }
+.plabel-row .plabel { flex: 1; }
+tr.dim-row { opacity: .45; }

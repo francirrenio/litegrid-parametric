@@ -96,6 +96,8 @@ export interface ProjectState {
   /** Per-drawer overrides keyed by bay id (e.g. BAY_S1_R2_C1). */
   overrides: Record<string, Partial<DrawerConfig>>
   printBed: { x: number; y: number; preset?: string }
+  /** Viewer colours: per part group and per part id. */
+  colors?: { groups: Record<string, string>; parts: Record<string, string> }
   /** Smallest item stored (mm): perforation holes are limited to this size. */
   smallestItem: number
   advanced: NozzleOverrides & { clearances?: Partial<Clearances>; fitClearance?: number }
