@@ -1,10 +1,9 @@
-import { translate } from '../geom/mesh'
 import { deriveNozzle } from '../core/nozzle'
 import type { GenerateResult, Part } from '../model/part'
 import type { ProjectState } from '../model/types'
 import { planPlates, plateMeshes, type Plate, type PlateOverrides } from './plates'
 import { stlBlob, stlBytes } from './stl'
-import { threeMfBlob } from './threemf'
+import { threeMfBlob, threeMfGroups } from './threemf'
 import { zipStore, type ZipFile } from './zip'
 import { tr } from '../i18n'
 
@@ -38,13 +37,12 @@ export function plate3mf(plate: Plate, parts: Part[]): Blob {
   return threeMfBlob(plateMeshes(plate, parts))
 }
 
-/** Every bed in one 3MF, side by side along X with a gap, each object named after its bed. */
+/** Every bed in one 3MF: one object per bed holding its parts, beds side by side along X with a gap. */
 export function allPlates3mf(plates: Plate[], parts: Part[], bedX: number): Blob {
   const step = bedX + 30
-  const items = plates.flatMap((pl, i) =>
-    plateMeshes(pl, parts).map((m) => ({ name: `Mesa ${pl.index} - ${m.name}`, mesh: translate(m.mesh, i * step, 0, 0) })),
+  return threeMfGroups(
+    plates.map((pl, i) => ({ name: `${tr('Mesa', 'Bed')} ${pl.index}`, items: plateMeshes(pl, parts), offset: [i * step, 0] as [number, number] })),
   )
-  return threeMfBlob(items)
 }
 
 export function manifestJson(result: GenerateResult): string {
