@@ -408,3 +408,12 @@ tr.dim-row { opacity: .45; }
 .tip:hover::after, .tip:focus::after, .tip:focus-visible::after { display: block; }
 
 .hdr-actions .lang-select { width: auto; height: 36px; padding: 0 28px 0 12px; border-radius: 10px; border: 1px solid var(--border-3); background-color: var(--panel-2); color: var(--text); font-size: 13px; cursor: pointer; }
+
+.ver-btn { margin-left: 6px; padding: 1px 7px; font-size: 10.5px; color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border); border-radius: 999px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.ver-btn.new { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
+.ver-btn.new::after { content: " • nova"; }
+.ver-now { margin: 0; font-size: 12px; color: var(--text-3); }
+.ver-status { margin: 0; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ver-status.ok { color: var(--ok); }
+.ver-status.warn { color: var(--warn); }
+.ver-list { margin: 0 0 4px; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.5; }

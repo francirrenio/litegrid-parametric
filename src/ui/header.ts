@@ -6,6 +6,7 @@ import { slug } from '../export'
 import { exportProjectText, importProjectText } from './storage'
 import { shareUrl } from './share'
 import { openHelp } from './help'
+import { APP_COMMIT, APP_VERSION, checkForUpdate, latestKnown, openChangelog } from './version'
 import type { Store } from './state'
 
 export function createHeader(st: Store): HTMLElement {
@@ -110,6 +111,8 @@ export function createHeader(st: Store): HTMLElement {
     }
   })
 
+  const verBtn = h('button', { type: 'button', class: 'ver-btn mono', title: tr('Ver histórico de versões', 'See version history'), onClick: () => openChangelog(latestKnown()) }, 'v' + APP_VERSION + ' · ' + APP_COMMIT)
+  void checkForUpdate(() => { verBtn.classList.add('new'); verBtn.title = tr('Há uma versão mais nova. Clique para ver.', 'A newer version is available. Click to see.') })
   const helpBtn = h('button', { type: 'button', class: 'btn', title: tr('Como usar o LiteGrid', 'How to use LiteGrid'), onClick: () => openHelp() }, h('span', { class: 'help-q', 'aria-hidden': 'true' }, '?'), h('span', { class: 'hide-sm' }, tr('Ajuda', 'Help')))
   const themeBtn = h('button', { type: 'button', class: 'btn icon-only', title: tr('Alternar tema claro e escuro', 'Switch between light and dark theme'), 'aria-label': tr('Alternar tema', 'Switch theme'), onClick: () => st.setTheme(st.theme === 'dark' ? 'light' : 'dark') })
   const paintTheme = () => {
@@ -138,7 +141,7 @@ export function createHeader(st: Store): HTMLElement {
       'div',
       { class: 'brand' },
       h('div', { class: 'logo', 'aria-hidden': 'true' }, icon('gabinete', 22)),
-      h('div', { class: 'brand-text' }, h('div', { class: 'eyebrow mono' }, 'LiteGrid Parametric · mm'), name),
+      h('div', { class: 'brand-text' }, h('div', { class: 'eyebrow mono' }, 'LiteGrid Parametric · mm ', verBtn), name),
     ),
     h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, share, file, helpBtn, langSel, themeBtn, createExportMenu(st)),
   )
