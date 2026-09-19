@@ -14,7 +14,7 @@ export const REINFORCEMENTS: Array<[FaceFill['reinforcement'], string]> = [
 ]
 
 /** Controls of a FaceFill; `mk(key)` returns the model of that field (project defaults, skin or per-drawer override). */
-export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 'skin' | 'drawer', smallest?: Model<never>): Child[] {
+export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 'skin' | 'drawer', smallest?: Model<never>, part?: 'floor'): Child[] {
   const m = <T,>(k: keyof FaceFill) => mk(k) as unknown as Model<T>
   const fill = m<FaceFill['fill']>('fill')
   const cur = fill.get()
@@ -52,20 +52,20 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
       ...(smallest ? [
         numField(smallest as unknown as Model<number>, tr('Menor item guardado', 'Smallest stored item'), {
           min: 1, max: 100, unit: 'mm', slider: true, sliderMax: 60,
-          hint: tr('Limita o tamanho dos furos das paredes vazadas.', 'Limits the size of the holes in perforated walls.'),
+          hint: tr('Define o tamanho dos furos: menor = mais furos pequenos.', 'Sets the hole size: smaller = more, smaller holes.'),
           tip: tr(
             'Tamanho do menor objeto que não pode cair pelos furos. Ex.: 5 mm para parafusos pequenos, 20 mm para peças maiores. Valores menores fazem furos menores e mais paredes fechadas.',
             'Size of the smallest object that must not fall through the holes. E.g. 5 mm for small screws, 20 mm for larger items. Smaller values mean smaller holes and more solid walls.',
           ),
         }),
       ] : []),
-      numField(m<number>('solidUpTo'), tr('Fechada até a altura', 'Solid up to height'), {
+      ...(part === 'floor' ? [] : [numField(m<number>('solidUpTo'), tr('Fechada até a altura', 'Solid up to height'), {
         min: 0, max: 500, unit: 'mm', slider: true, sliderMax: 120,
         tip: tr(
           'Altura, a partir da base, que fica sem furos. Use 10–30 mm para o fundo segurar itens pequenos; 0 deixa vazado até embaixo.',
           'Height from the base that stays without holes. Use 10–30 mm so the bottom holds small items; 0 perforates all the way down.',
         ),
-      }),
+      })]),
     )
   }
   if (cur === 'panel') {

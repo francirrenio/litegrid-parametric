@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.2.5',
+    date: '2026-09-19',
+    pt: ['Fundo da gaveta não mostra mais "Fechada até a altura", que não tinha efeito nele.', '"Menor item guardado" deixa claro que também define o tamanho dos furos.'],
+    en: ['The drawer floor no longer shows "Solid up to height", which had no effect on it.', '"Smallest stored item" now says it also sets the hole size.'],
+  },
+  {
     version: '0.2.4',
     date: '2026-09-19',
     pt: ['Os perímetros da gaveta mostram a espessura final da parede na hora.', 'Novo: perímetros do fundo da gaveta como configuração separada (automático = igual às paredes).'],

@@ -146,7 +146,7 @@ export function gavetasTab(st: Store): TabView {
       ),
     })
   const face = (title: string, sub: 'sides' | 'floor') =>
-    group(title, ...(sub === 'floor' ? [floorPerim()] : []), ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer', pathModel(st, 'smallestItem') as never) as HTMLElement[]))
+    group(title, ...(sub === 'floor' ? [floorPerim()] : []), ...(faceFillControls((k) => mk(`${sub}.${k}`) as never, 'drawer', pathModel(st, 'smallestItem') as never, sub === 'floor' ? 'floor' : undefined) as HTMLElement[]))
 
   const focusToggle = h('label', { class: 'vis-check focus-toggle' }, h('input', { type: 'checkbox', checked: st.view.autoFocus, 'aria-label': tr('Mostrar só uma gaveta ao editar', 'Show only one drawer while editing'), onChange: (e: Event) => st.setView({ autoFocus: (e.target as HTMLInputElement).checked }) }), h('span', null, tr('Mostrar só uma gaveta no 3D enquanto edito', 'Show only one drawer in 3D while I edit')))
 
