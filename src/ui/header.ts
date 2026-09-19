@@ -3,6 +3,7 @@ import { confirmDialog, download, dropdown, h, icon, menuHeading, menuItem, toas
 import { createExportMenu } from './export-menu'
 import { slug } from '../export'
 import { exportProjectText, importProjectText } from './storage'
+import { shareUrl } from './share'
 import type { Store } from './state'
 
 export function createHeader(st: Store): HTMLElement {
@@ -59,6 +60,29 @@ export function createHeader(st: Store): HTMLElement {
     }
   })
   const save = h('button', { type: 'button', class: 'btn', title: 'Baixar o projeto como arquivo JSON', onClick: () => download(exportProjectText(st.project), `${slug(st.project.name)}.json`, 'application/json') }, icon('save', 16), h('span', { class: 'hide-sm' }, 'Salvar arquivo'))
+  const share = h(
+    'button',
+    {
+      type: 'button',
+      class: 'btn',
+      title: 'Copia um link com o projeto dentro; quem abrir o link recebe uma cópia',
+      onClick: async () => {
+        try {
+          const url = await shareUrl(st.project, location.href)
+          try {
+            await navigator.clipboard.writeText(url)
+          } catch {
+            window.prompt('Copie o link:', url)
+          }
+          toast('Link copiado. Quem abrir recebe uma cópia do projeto.', 'ok')
+        } catch {
+          toast('Não foi possível criar o link.', 'error')
+        }
+      },
+    },
+    icon('copy', 16),
+    h('span', { class: 'hide-sm' }, 'Copiar link'),
+  )
   const open = h('button', { type: 'button', class: 'btn', title: 'Abrir um projeto salvo em JSON', onClick: () => file.click() }, icon('open', 16), h('span', { class: 'hide-sm' }, 'Abrir arquivo'))
 
   const undoBtn = h('button', { type: 'button', class: 'btn icon-only', title: 'Desfazer (Ctrl+Z)', 'aria-label': 'Desfazer', onClick: () => st.undo() }, icon('undo', 17))
@@ -101,6 +125,6 @@ export function createHeader(st: Store): HTMLElement {
       h('div', { class: 'logo', 'aria-hidden': 'true' }, icon('gabinete', 22)),
       h('div', { class: 'brand-text' }, h('div', { class: 'eyebrow mono' }, 'LiteGrid Parametric · mm'), name),
     ),
-    h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, file, themeBtn, createExportMenu(st)),
+    h('div', { class: 'hdr-actions' }, undoBtn, redoBtn, projects, presets, save, open, share, file, themeBtn, createExportMenu(st)),
   )
 }
