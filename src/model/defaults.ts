@@ -13,6 +13,7 @@ export function defaultFaceFill(overrides: Partial<FaceFill> = {}): FaceFill {
     frame: 'auto',
     reinforcement: 'auto',
     reinforcementWidth: 'auto',
+    reinforcementHeight: 'auto',
     panelSystem: 'skadis',
     pegboardHole: '1/4',
     hswVariant: 'sd',

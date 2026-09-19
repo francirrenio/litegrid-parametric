@@ -24,8 +24,10 @@ export interface FaceFill {
   /** Solid border around the face (mm). 'auto' = derived from nozzle. */
   frame: number | 'auto'
   reinforcement: Reinforcement
-  /** How far the reinforcement sticks out from the wall (mm); 'auto' picks by wall height. */
+  /** Width of the reinforcement rib at the wall (mm); 'auto' picks by wall height. */
   reinforcementWidth?: number | 'auto'
+  /** How far the reinforcement sticks out (mm); 'auto' picks by wall height. */
+  reinforcementHeight?: number | 'auto'
   panelSystem: PanelSystem
   pegboardHole: '1/4' | '1/8'
   hswVariant: 'sd' | 'hd'

@@ -154,11 +154,19 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
       if (kind === 'drawer' && m<FaceFill['reinforcement']>('reinforcement').get() !== 'none') {
         out.push(
           autoField(m<number | 'auto'>('reinforcementWidth'), tr('Largura do reforço', 'Reinforcement width'), {
-            min: 0.8, max: 12, step: 0.1, unit: 'mm', fallback: 3, autoText: tr('automática', 'automatic'),
+            min: 1, max: 30, step: 0.5, unit: 'mm', fallback: 6, autoText: tr('automática', 'automatic'),
+            hint: tr('Largura de cada nervura junto da parede.', 'Width of each rib where it meets the wall.'),
+            tip: tr(
+              'Largura da base de cada nervura, junto da parede. Mais larga com pouca altura dá um reforço baixo e suave (ex.: 10 mm de largura por 1 mm de altura) que se imprime sem suporte e quase não ocupa espaço.',
+              'Width of the base of each rib, where it meets the wall. Wider with little height gives a low, gentle reinforcement (e.g. 10 mm wide by 1 mm high) that prints without supports and takes almost no room.',
+            ),
+          }),
+          autoField(m<number | 'auto'>('reinforcementHeight'), tr('Altura do reforço', 'Reinforcement height'), {
+            min: 0.4, max: 10, step: 0.1, unit: 'mm', fallback: 2, autoText: tr('automática', 'automatic'),
             hint: tr('Quanto o reforço avança da parede para dentro da gaveta.', 'How far the reinforcement sticks out from the wall into the drawer.'),
             tip: tr(
-              'Quanto o reforço avança da parede para dentro da gaveta. Automático escolhe pela altura (2,5 a 5 mm). Diminua se o reforço estiver tomando espaço demais; aumente para uma parede mais rígida.',
-              'How far the reinforcement sticks out from the wall into the drawer. Automatic picks by height (2.5 to 5 mm). Lower it if it takes up too much room; raise it for a stiffer wall.',
+              'Quanto o reforço avança da parede para dentro da gaveta. O perfil é uma crista: larga na base e estreita no topo, sempre com flancos suaves. Diminua se ele estiver tomando espaço; aumente para uma parede mais rígida.',
+              'How far the reinforcement sticks out from the wall into the drawer. The profile is a ridge: wide at the base and narrow at the top, always with gentle flanks. Lower it if it takes up room; raise it for a stiffer wall.',
             ),
           }),
         )

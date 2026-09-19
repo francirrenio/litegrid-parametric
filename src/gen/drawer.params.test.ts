@@ -41,3 +41,15 @@ describe('drawer parameters', () => {
         expect(holders.length).toBe(labelMode === 'external' ? 1 : 0)
       })
 })
+
+describe('ridge reinforcement', () => {
+  it('a 10 x 1 mm ridge stays low: it does not stick out more than 1 mm past the wall', () => {
+    const { part } = drawerOf({
+      front: 'flat', handle: 'none', labelHolder: false,
+      sides: defaultFaceFill({ fill: 'closed', reinforcement: 'x', reinforcementWidth: 10, reinforcementHeight: 1 }),
+    })
+    const flat = drawerOf({ front: 'flat', handle: 'none', labelHolder: false, sides: defaultFaceFill({ fill: 'closed', reinforcement: 'none' }) }).part
+    expect(isWatertight(part.mesh)).toBe(true)
+    expect(part.mesh.length).toBeGreaterThan(flat.mesh.length)
+  })
+})

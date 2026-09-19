@@ -1,5 +1,5 @@
 import type { Nozzle } from '../core/nozzle'
-import type { Mesh, Vec2 } from '../geom/mesh'
+import { signedVolume, type Mesh, type Vec2 } from '../geom/mesh'
 import type { DrawerConfig, FaceFill, Load, Reinforcement } from '../model/types'
 import polygonClipping from 'polygon-clipping'
 import { generatePattern } from './patterns'
@@ -27,6 +27,12 @@ export interface DrawerCtx {
   load: Load
   smallest: number
   reinf: Reinforcement
+}
+
+function flipTriangles(m: number[]): number[] {
+  const o: number[] = []
+  for (let i = 0; i < m.length; i += 9) o.push(...m.slice(i, i + 3), ...m.slice(i + 6, i + 9), ...m.slice(i + 3, i + 6))
+  return o
 }
 
 const numOr = (v: unknown): number | null => (typeof v === 'number' && v > 0 ? v : null)
@@ -167,61 +173,116 @@ export function wallPlates(c: DrawerCtx): Mesh[] {
 
 function spacingFor(hEff: number) { return Math.max(28, hEff * 0.8) }
 
-/** Reinforcement on the inner faces of the side and back walls. */
+const signedArea = (p: Vec2[]): number => p.reduce((s2, q, i) => { const r = p[(i + 1) % p.length]!; return s2 + (q[0] * r[1] - r[0] * q[1]) }, 0) / 2
+
+const edgeLengths = (p: Vec2[]): number[] => p.map((q, i) => { const r = p[(i + 1) % p.length]!; return Math.hypot(r[0] - q[0], r[1] - q[1]) })
+
+/** Convex polygon moved inward by d on every side; null when it would collapse. */
+function insetConvex(poly: Vec2[], d: number): Vec2[] | null {
+  const p = signedArea(poly) < 0 ? poly.slice().reverse() : poly
+  const n = p.length
+  const lines = p.map((q, i) => {
+    const r = p[(i + 1) % n]!
+    const ex = r[0] - q[0], ey = r[1] - q[1]
+    const len = Math.hypot(ex, ey) || 1
+    const nx = -ey / len, ny = ex / len
+    return { px: q[0] + nx * d, py: q[1] + ny * d, dx: ex / len, dy: ey / len }
+  })
+  const out: Vec2[] = []
+  for (let i = 0; i < n; i++) {
+    const l0 = lines[(i + n - 1) % n]!, l1 = lines[i]!
+    const den = l0.dx * l1.dy - l0.dy * l1.dx
+    if (Math.abs(den) < 1e-9) return null
+    const t = ((l1.px - l0.px) * l1.dy - (l1.py - l0.py) * l1.dx) / den
+    out.push([l0.px + l0.dx * t, l0.py + l0.dy * t])
+  }
+  const a = signedArea(out)
+  return a > 0 && a < signedArea(p) ? out : null
+}
+
+/**
+ * A rib with a ridge section: the footprint polygon (in the wall plane) is the wide base against the wall, and it narrows
+ * to a flat top h mm out from the wall. The flanks are shallow, so it prints without supports at any angle.
+ */
+function ridge(c: DrawerCtx, wall: Wall, foot: Vec2[], h: number, top: number): Mesh {
+  const base = signedArea(foot) < 0 ? foot.slice().reverse() : foot
+  const width = Math.min(...edgeLengths(base))
+  const want = Math.max(0.05, (width - top) / 2)
+  let tp: Vec2[] | null = null
+  for (const f of [1, 0.6, 0.3]) {
+    tp = insetConvex(base, want * f)
+    if (tp) break
+  }
+  if (!tp) {
+    const cx = base.reduce((s2, q) => s2 + q[0], 0) / base.length
+    const cy = base.reduce((s2, q) => s2 + q[1], 0) / base.length
+    tp = base.map(([x, y]) => [cx + (x - cx) * 0.3, cy + (y - cy) * 0.3] as Vec2)
+  }
+  const nb = c.w - OV, nt = c.w + h
+  const map = (v: number, y: number, n: number): [number, number, number] =>
+    wall === 'left' ? [n, y, v] : wall === 'right' ? [c.W - n, y, v] : [v, y, n]
+  const B = base.map(([v, y]) => map(v, y, nb)), T = tp.map(([v, y]) => map(v, y, nt))
+  const m: number[] = []
+  const tri = (p0: number[], p1: number[], p2: number[]) => m.push(...p0, ...p1, ...p2)
+  const k = base.length
+  for (let i = 0; i < k; i++) {
+    const j = (i + 1) % k
+    tri(B[i]!, B[j]!, T[j]!)
+    tri(B[i]!, T[j]!, T[i]!)
+  }
+  for (let i = 1; i < k - 1; i++) {
+    tri(T[0]!, T[i]!, T[i + 1]!)
+    tri(B[0]!, B[i + 1]!, B[i]!)
+  }
+  return signedVolume(m) < 0 ? flipTriangles(m) : m
+}
+
+/** Reinforcement on the inner faces of the side and back walls: ribs with a ridge section (a base width and a height). */
 export function reinforcement(c: DrawerCtx): Mesh[] {
   const kind = c.reinf
   if (kind === 'none' || kind === 'auto' || kind === 'corrugated' && c.s === 0) return []
   const out: Mesh[] = []
   const hEff = c.H - c.fT
-  const rt = Math.max(c.w, 1.6)
-  const walls: Wall[] = ['left', 'right', 'back']
   const eff: Reinforcement = kind === 'corrugated' ? 'ribs' : kind
+  const h = Math.max(0.4, numOr(c.cfg.sides.reinforcementHeight) ?? (eff === 'ribs' ? clamp(hEff * 0.03, 1.5, 3) : 2))
+  const bw = Math.max(1, numOr(c.cfg.sides.reinforcementWidth) ?? Math.max(4, 2 * h + 2))
+  const top = Math.min(Math.max(0.8, c.nz.lineWidth * 2), bw * 0.4)
   const angleMin = (50 * Math.PI) / 180
-  for (const wall of walls) {
+  for (const wall of ['left', 'right', 'back'] as Wall[]) {
     const sideWall = wall !== 'back'
     const v0 = c.w + 1.5
     const v1 = sideWall ? c.Zf - c.wf - 1.5 : c.W - c.w - 1.5
     const len = v1 - v0
     if (len < 6) continue
-    const hb = sideWall && c.s > 0 ? c.Hf : c.H
-    const n0 = c.w - OV
     const yb = 0
+    const trim = sideWall && c.s > 0
+    const region: Array<[number, number]> = [[-1, 0], [c.Zf + 1, 0], [c.Zf + 1, c.Hf - 1], [c.Zf - c.s, c.H - 1], [-1, c.H - 1]]
+    // Every rib is drawn for the full wall height and then trimmed to the sloped front, like the wall.
+    const place = (foot: Vec2[]): void => {
+      if (!trim || foot.every(([z, y]) => y <= topAt(c, z) - 1 + 1e-6)) {
+        out.push(ridge(c, wall, foot, h, top))
+        return
+      }
+      for (const poly of polygonClipping.intersection([foot.map(([a, b]) => [a, b] as [number, number])], [region])) {
+        const pts = poly[0]!.slice(0, -1).map(([a, b]) => [a, b] as Vec2)
+        if (pts.length >= 3) out.push(ridge(c, wall, pts, h, top))
+      }
+    }
     if (eff === 'ribs' || eff === 'postsBeams') {
       const spacing = spacingFor(hEff)
       const n = Math.max(1, Math.ceil(len / spacing) - 1)
-      const rd = numOr(c.cfg.sides.reinforcementWidth) ?? (eff === 'ribs' ? clamp(hEff * 0.1, 2.5, 5) : 2.4)
       for (let i = 0; i < n; i++) {
         const vc = v0 + ((i + 1) * len) / (n + 1)
-        const yTop = (sideWall ? Math.min(topAt(c, vc), hb + (c.s > 0 ? 0 : 0)) : c.H) - 1
-        const yT = sideWall ? Math.min(topAt(c, vc + rt / 2), topAt(c, vc - rt / 2)) - 1 : yTop
-        const prof: Vec2[] = eff === 'ribs'
-          ? [[n0, yb], [c.w + rd, yb], [n0, yT]]
-          : [[n0, yb], [c.w + rd, yb], [c.w + rd, yT], [n0, yT]]
-        out.push(alongWall(c, wall, prof, vc - rt / 2, vc + rt / 2))
+        place([[vc - bw / 2, yb], [vc + bw / 2, yb], [vc + bw / 2, c.H - 1], [vc - bw / 2, c.H - 1]])
       }
     } else {
-      // Built for the full wall height, then trimmed to the sloped front like the wall itself.
-      void hb
       const yt = c.H - 1
       const rise = yt - yb
       const dvMax = rise / Math.tan(angleMin)
       const cells = Math.max(1, Math.ceil(len / dvMax))
       const dv = len / cells
-      const sw = 2
-      const depth = numOr(c.cfg.sides.reinforcementWidth) ?? 2
-      const trim = sideWall && c.s > 0
-      const place = (strut: Vec2[]): void => {
-        if (!trim || strut.every(([z, y]) => y <= topAt(c, z) - 1 + 1e-6)) {
-          out.push(acrossWall(c, wall, strut, n0, c.w + depth))
-          return
-        }
-        const region: Array<[number, number]> = [[-1, 0], [c.Zf + 1, 0], [c.Zf + 1, c.Hf - 1], [c.Zf - c.s, c.H - 1], [-1, c.H - 1]]
-        const ring = strut.map(([a, b]) => [a, b] as [number, number])
-        for (const poly of polygonClipping.intersection([ring], [region])) {
-          const pts = poly[0]!.slice(0, -1).map(([a, b]) => [a, b] as Vec2)
-          if (pts.length >= 3) out.push(acrossWall(c, wall, pts, n0, c.w + depth))
-        }
-      }
+      // horizontal width that gives a strut of perpendicular width bw
+      const sw = (bw * Math.hypot(dv, rise)) / rise
       for (let k = 0; k < cells; k++) {
         const a = v0 + k * dv
         const j = 0.021 * (k % 5)

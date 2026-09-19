@@ -45,7 +45,7 @@ const ENUMS: Record<string, readonly string[]> = {
   screw: ['none', 'M3', 'M4'],
   load: ['leve', 'media', 'pesada'],
 }
-const AUTO_KEYS = new Set(['frame', 'thickness', 'standoffMm', 'barWidth', 'floorPerimeters', 'frontHeight', 'chamferLength', 'rimWidth', 'reinforcementWidth'])
+const AUTO_KEYS = new Set(['frame', 'thickness', 'standoffMm', 'barWidth', 'floorPerimeters', 'frontHeight', 'chamferLength', 'rimWidth', 'reinforcementWidth', 'reinforcementHeight'])
 const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
 
 function pickSize(v: unknown): number | 'auto' {

@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.3.1',
+    date: '2026-09-19',
+    pt: ['Reforços agora têm perfil em crista (larga na base, estreita no topo), sem suporte em qualquer ângulo, com largura e altura ajustáveis (ex.: 10 x 1 mm).'],
+    en: ['Reinforcements now have a ridge profile (wide at the base, narrow at the top), supportless at any angle, with adjustable width and height (e.g. 10 x 1 mm).'],
+  },
+  {
     version: '0.3.0',
     date: '2026-09-19',
     pt: ['Reforço em X e treliça agora tem a altura toda da parede e é aparado pelo chanfro da frente, como a parede.', 'Chanfro da frente paramétrico: altura da frente e comprimento do chanfro.', 'Aba no topo da frente virou opção própria, com profundidade ajustável (antes era o formato "Com aba").', 'Largura do reforço e largura da borda superior ajustáveis.', 'Porta-etiqueta com escolha: nenhum, embutido na parede (canal na frente) ou externo (imprimir e colar).', 'Grupos de parâmetros com título destacado e recolhíveis.', 'Correção: parâmetros de seção e de fila, e valores numéricos do fundo, agora sobrevivem a recarregar ou importar o projeto.'],
