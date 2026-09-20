@@ -7,7 +7,7 @@ import { defaultProject } from '../model/defaults'
 import type { FixingConfig, ProjectState } from '../model/types'
 import { layoutInput } from './index'
 import { faceAnchors } from './anchors'
-import { generateFixingParts, hexRing, keyholePoly, SKADIS_CLIP_PROFILE } from './fixings'
+import { generateFixingParts, halfLathe, hexRing, keyholePoly, SKADIS_CLIP_PROFILE } from './fixings'
 import { skeletonMetrics } from './metrics'
 
 const none: FixingConfig = {
@@ -33,17 +33,72 @@ describe('fixings', () => {
     expect(run({}).parts).toHaveLength(0)
   })
 
-  it('pins: 4 per interface (right + top), diameter = hole - 2 fit, watertight, no overhang', () => {
+  it('pins: 2 half-pins per pin, 4 pins per interface, printed flat, watertight, no overhang', () => {
     const { p, nz, parts } = run({ between: { pins: true } })
     expect(parts).toHaveLength(1)
     const pin = parts[0]!
-    expect(pin.instances).toHaveLength(8)
+    expect(pin.id).toBe('FIX_PINO_METADE')
+    expect(pin.instances).toHaveLength(16)
     const m = skeletonMetrics(p, nz)
-    expect(pin.size[0]).toBeCloseTo(m.holeD - 2 * m.fit, 1)
-    expect(pin.size[2]).toBeCloseTo(6)
+    const dia = m.holeD - 2 * m.fit
+    const R = dia / 2 + 0.9
+    expect(pin.size[0]).toBeCloseTo(2 * R, 1)
+    expect(pin.size[2]).toBeCloseTo(R, 1)
+    const shaft = Math.min(4, Math.max(2, m.t))
+    const ct = pin.size[1] - 2 * shaft
+    expect(ct).toBeGreaterThan(0.9)
+    expect(ct).toBeLessThan(1.5)
     expect(isWatertight(pin.mesh)).toBe(true)
+    expect(signedVolume(pin.mesh)).toBeGreaterThan(0)
     expect(overhangArea(pin.mesh, 44)).toBeLessThan(1e-3)
+    // two halves together ~ the full cylinder (chamfered ends and 16-segment arc cost a few %)
+    const full = Math.PI * (dia / 2) ** 2 * 2 * shaft + Math.PI * R * R * ct
+    const both = 2 * signedVolume(pin.mesh)
+    expect(both / full).toBeGreaterThan(0.85)
+    expect(both / full).toBeLessThan(1.02)
     expect(pin.note).toBeTruthy()
+  })
+
+  it('the two placements of a pin face each other (second turned 180 deg about the axis)', () => {
+    const { parts } = run({ between: { pins: true } })
+    const pin = parts[0]!
+    const a = bbox(transform(pin.mesh, pin.instances[0]!))
+    const b = bbox(transform(pin.mesh, pin.instances[1]!))
+    // same axis, same length; they overlap only at the shared flat face
+    const dims = [0, 1, 2].map((k) => Math.abs(a.hi[k]! - a.lo[k]!) - Math.abs(b.hi[k]! - b.lo[k]!))
+    expect(Math.max(...dims.map(Math.abs))).toBeLessThan(1e-6)
+    const union = bbox([...transform(pin.mesh, pin.instances[0]!), ...transform(pin.mesh, pin.instances[1]!)])
+    const w = pin.size[0]
+    const dimsU = [0, 1, 2].map((k) => union.hi[k]! - union.lo[k]!).sort((x, y) => x - y)
+    expect(dimsU[0]).toBeCloseTo(w, 1)
+    expect(dimsU[1]).toBeCloseTo(w, 1)
+    expect(dimsU[2]).toBeCloseTo(pin.size[1], 1)
+  })
+
+  it('halfLathe is watertight', () => {
+    expect(isWatertight(halfLathe([[-3, 1], [-2.5, 1.5], [2.5, 1.5], [3, 1]]))).toBe(true)
+  })
+
+  it('fixings are proportionate: thin plates, sensible sizes, fit a 220 x 220 bed', () => {
+    const { parts } = run({
+      between: { pins: true, butterfly: true, screw: 'M3', magnet: true },
+      wall: { mode: 'screws' },
+      hangOnSkadis: true,
+    })
+    const by = (id: string) => parts.find((x) => x.id === id)!
+    expect(by('FIX_BORBOLETA').size[2]).toBeLessThanOrEqual(1.6 + 2.5 + 0.3)
+    expect(by('FIX_PLACA_PAREDE').size[2]).toBeLessThanOrEqual(3.6 + 2.5)
+    expect(by('FIX_CONECTOR_M3').size[2]).toBeLessThanOrEqual(4.2)
+    expect(by('FIX_CONECTOR_M3').size[1]).toBeLessThanOrEqual(10)
+    expect(by('FIX_CONECTOR_IMA').size[1]).toBeLessThanOrEqual(9)
+    const k = run({ wall: { mode: 'keyhole' } }).parts[0]!
+    expect(k.size[2]).toBeLessThanOrEqual(5.6 + 2.5 + 1e-6)
+    const c = run({ wall: { mode: 'cleat' } }).parts
+    for (const part of c) expect(part.size[2]).toBeLessThanOrEqual(5.6 + 1e-6)
+    for (const part of [...parts, k, ...c]) {
+      expect(Math.max(part.size[0], part.size[1]), part.id).toBeLessThanOrEqual(220)
+      expect(Math.min(part.size[0], part.size[1]), part.id).toBeLessThanOrEqual(220)
+    }
   })
 
   it('pins land on the anchors of the joined faces', () => {
@@ -64,7 +119,7 @@ describe('fixings', () => {
       hangOnSkadis: true,
     })
     const ids = parts.map((x) => x.id)
-    expect(ids).toEqual(expect.arrayContaining(['FIX_PINO', 'FIX_BORBOLETA', 'FIX_CONECTOR_M3', 'FIX_CONECTOR_IMA', 'FIX_PLACA_PAREDE', 'FIX_GANCHO_SKADIS']))
+    expect(ids).toEqual(expect.arrayContaining(['FIX_PINO_METADE','FIX_BORBOLETA', 'FIX_CONECTOR_M3', 'FIX_CONECTOR_IMA', 'FIX_PLACA_PAREDE', 'FIX_GANCHO_SKADIS']))
     for (const part of parts) {
       expect(part.group).toBe('fixacao')
       expect(isWatertight(part.mesh), part.id).toBe(true)
@@ -97,7 +152,7 @@ describe('fixings', () => {
     const mag = run({ between: { magnet: true } }).parts[0]!
     expect(mag.size[2]).toBeCloseTo(3)
     const bf = run({ between: { butterfly: true } }).parts[0]!
-    expect(bf.size[2]).toBeCloseTo(2 + 3)
+    expect(bf.size[2]).toBeLessThan(1.6 + 2.5 + 0.3)
   })
 
   it('Skadis clips: 40 mm pitch, 6.1 mm wide pairs, 12 mm long, 45 deg barbs', () => {
@@ -106,7 +161,7 @@ describe('fixings', () => {
     expect(clip.id).toBe('FIX_GANCHO_SKADIS')
     const w = SKADIS_CLIP_PROFILE.map((q) => q[0])
     expect(Math.max(...w) * 2).toBeCloseTo(6.1)
-    expect(clip.size[2]).toBeCloseTo(3 + 6.5)
+    expect(clip.size[2]).toBeGreaterThan(2.4 + 6.5 - 1e-6); expect(clip.size[2]).toBeLessThan(2.4 + 6.5 + 0.3)
     expect(clip.size[0]).toBeGreaterThan(56 - 1e-6)
     // the four blades' bottom caps abut the plate (internal faces): 4 x 1.5 x 12 mm
     expect(overhangArea(clip.mesh, 44)).toBeLessThan(4 * 1.5 * 12 + 0.5)

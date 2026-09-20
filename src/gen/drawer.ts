@@ -1,6 +1,7 @@
 import type { Bay, Layout, Warning } from '../core/layout'
 import type { Nozzle } from '../core/nozzle'
-import { mat4RotX, mat4Translate, merge, translate, type Mat4, type Mesh, type Vec2 } from '../geom/mesh'
+import { bbox, mat4RotX, mat4Translate, merge, translate, type Mat4, type Mesh, type Vec2 } from '../geom/mesh'
+import { splitDrawerToBed, type SplitResult } from './drawer-split'
 import type { Part } from '../model/part'
 import { makePart } from '../model/part'
 import type { DrawerConfig, Load, ProjectState } from '../model/types'
@@ -108,6 +109,30 @@ function dividerMesh(b: Built, chamfer: boolean): Mesh {
   return prismAxis('z', poly, [], -b.dividerT / 2, b.dividerT / 2)
 }
 
+/** Splits a drawer whose print footprint does not fit the bed in any 90 degree turn; null when it fits or cannot be split. */
+function trySplit(p: ProjectState, b: Built, _where?: string): SplitResult | null {
+  const bb = bbox(b.mesh)
+  const [w, d] = [bb.size[0], bb.size[2]]
+  const bed = p.printBed
+  if ((w <= bed.x && d <= bed.y) || (d <= bed.x && w <= bed.y)) return null
+  const c = b.ctx
+  const pl = b.plan
+  const avoidX: Array<[number, number]> = []
+  if (pl.notch) avoidX.push([c.W / 2 - pl.notch.nw / 2, c.W / 2 + pl.notch.nw / 2])
+  if (pl.slot) avoidX.push([pl.slot.x0, pl.slot.x1])
+  if (pl.pocket) avoidX.push([pl.pocket.x0, pl.pocket.x1])
+  if (pl.channel) avoidX.push([pl.channel.x0, pl.channel.x1])
+  const g = b.slotW / 2 + b.dividerT + 2
+  try {
+    return splitDrawerToBed({
+      pieces: b.pieces, w: c.w, wf: c.wf, fT: c.fT, yTop: Math.min(c.H, pl.Hf), bed, fit: fitClearance(p),
+      avoidX, avoidZ: b.slots.map((z) => [z - g, z + g] as [number, number]),
+    })
+  } catch {
+    return null
+  }
+}
+
 export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle, warn?: (w: Warning) => void): Part[] {
   const groups = new Map<string, Group>()
   for (const bay of layout.bays) {
@@ -148,15 +173,39 @@ export function generateDrawerParts(p: ProjectState, layout: Layout, nz: Nozzle,
       c.reinf !== 'none' && c.reinf !== 'auto' ? tr(`Reforço das paredes: ${c.reinf}.`, `Wall reinforcement: ${c.reinf}.`) : '',
       g.cfg.perimeters < 2 ? tr('Com 1 perímetro a parede fica frágil.', 'With 1 perimeter the wall is fragile.') : '',
     ].filter(Boolean)
-    parts.push(makePart({
-      id: `gaveta-${Math.round(d.width)}x${Math.round(d.height)}x${Math.round(d.depth)}-${hash}`,
-      label: n > 1 ? `${baseLabel} (${String.fromCharCode(64 + n)})` : baseLabel,
-      group: 'gaveta',
-      assembled: translate(built.mesh, ox, oy, oz),
-      orient: mat4RotX(Math.PI / 2),
-      placements,
-      note: hints.join(' '),
-    }))
+    const baseId = `gaveta-${Math.round(d.width)}x${Math.round(d.height)}x${Math.round(d.depth)}-${hash}`
+    const baseName = n > 1 ? `${baseLabel} (${String.fromCharCode(64 + n)})` : baseLabel
+    const split = trySplit(p, built, warn ? ref.id : undefined)
+    if (split) {
+      const word = split.halves.length === 2 ? tr('metade', 'half') : tr('parte', 'part')
+      split.halves.forEach((h, i) => {
+        const L = String.fromCharCode(65 + i)
+        parts.push(makePart({
+          id: `${baseId}-${L}`,
+          label: `${baseName} (${word} ${L})`,
+          group: 'gaveta',
+          assembled: translate(h, ox, oy, oz),
+          orient: mat4RotX(Math.PI / 2),
+          placements,
+          note: [hints.join(' '), tr(`Gaveta dividida em ${split.halves.length} partes para caber na mesa; cole as metades (os pinos quadrados encaixam sem folga lateral).`, `Drawer split into ${split.halves.length} parts to fit the bed; glue the halves together (the square pegs align them).`)].join(' '),
+        }))
+      })
+      warn?.({
+        code: 'design',
+        where: ref.id,
+        message: tr(`Gaveta dividida em ${split.halves.length} partes para caber na mesa; cole as metades (${baseName}).`, `Drawer split into ${split.halves.length} parts to fit the bed; glue the halves together (${baseName}).`),
+      })
+    } else {
+      parts.push(makePart({
+        id: baseId,
+        label: baseName,
+        group: 'gaveta',
+        assembled: translate(built.mesh, ox, oy, oz),
+        orient: mat4RotX(Math.PI / 2),
+        placements,
+        note: hints.join(' '),
+      }))
+    }
 
     const spec = labelSpec(d.width, c.w, c.fT, built.plan, g.cfg)
     if (!spec && labelModeOf(g.cfg) !== 'none') {

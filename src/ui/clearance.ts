@@ -32,7 +32,8 @@ export function computeClearances(result: GenerateResult): BayClearance[] {
   }
   const out: BayClearance[] = []
   for (const bay of result.layout.bays) {
-    let best: { lo: number[]; hi: number[]; vol: number } | undefined
+    // A drawer split to fit the bed is several parts: take the union of every 'Gaveta' box centred in the bay.
+    let best: { lo: number[]; hi: number[] } | undefined
     for (const part of result.parts) {
       if (part.group !== 'gaveta' || !/^(Gaveta|Drawer)/.test(part.label)) continue
       part.instances.forEach((_, i) => {
@@ -40,8 +41,9 @@ export function computeClearances(result: GenerateResult): BayClearance[] {
         const cx = (b.lo[0]! + b.hi[0]!) / 2
         const cy = (b.lo[1]! + b.hi[1]!) / 2
         if (cx < bay.x || cx > bay.x + bay.clearWidth || cy < bay.y || cy > bay.y + bay.clearHeight) return
-        const vol = (b.hi[0]! - b.lo[0]!) * (b.hi[1]! - b.lo[1]!) * (b.hi[2]! - b.lo[2]!)
-        if (!best || vol > best.vol) best = { lo: b.lo, hi: b.hi, vol }
+        best = best
+          ? { lo: best.lo.map((v, k) => Math.min(v, b.lo[k]!)), hi: best.hi.map((v, k) => Math.max(v, b.hi[k]!)) }
+          : { lo: [...b.lo], hi: [...b.hi] }
       })
     }
     if (!best) continue

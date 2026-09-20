@@ -15,6 +15,12 @@ interface Entry {
 /** Newest first. Add an entry here (and bump package.json) with every release. */
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.4.0',
+    date: '2026-09-20',
+    pt: ['Gavetas maiores que a mesa são divididas automaticamente em partes com encaixes para colar.', 'Pino de alinhamento agora em duas metades para imprimir deitado, com arruela no meio que limita a profundidade em cada gabinete.', 'Plugues, chave borboleta, placas e ripas de parede mais finos e proporcionais.', 'A arrumação das peças na mesa é salva com o projeto.', 'Aviso "Mostrar tudo" quando há peça isolada ou escondida.', 'Skins: campo de espessura da parede; reforço (que não tinha efeito) saiu das skins.', 'Grupos recolhidos lembrados por aba.', 'Porta-etiqueta desligado por padrão (as gavetas baixas não têm espaço).'],
+    en: ['Drawers larger than the bed are split automatically into parts with joints to glue.', 'Alignment pin now in two halves to print lying down, with a central washer that limits the depth in each cabinet.', 'Plugs, butterfly key, wall plates and cleats are thinner and better proportioned.', 'The arrangement of parts on the bed is saved with the project.', '"Show all" notice when a part is isolated or hidden.', 'Skins: wall thickness field; the reinforcement option (which had no effect) was removed from skins.', 'Collapsed groups are remembered per tab.', 'Label holder is off by default (short drawers have no room).'],
+  },
+  {
     version: '0.3.2',
     date: '2026-09-19',
     pt: ['Aviso quando o porta-etiqueta não cabe na frente da gaveta (antes sumia sem avisar).', 'Testes com centenas de combinações aleatórias de parâmetros: peças sempre fechadas e dentro do vão.'],

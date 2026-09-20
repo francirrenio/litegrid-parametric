@@ -116,7 +116,8 @@ export function mountApp(root: HTMLElement, st: Store): void {
   const montBar = h('div', { class: 'mont-bar', hidden: true })
   const clearChip = h('div', { class: 'clear-chip', hidden: true, role: 'status' })
   const focusText = h('span', null)
-  const focusChip = h('div', { class: 'focus-chip', hidden: true, role: 'status' }, focusText, h('button', { type: 'button', class: 'btn sm', onClick: () => st.setView({ autoFocus: false }) }, tr('Ver tudo', 'Show all')))
+  const focusBtn = h('button', { type: 'button', class: 'btn sm', onClick: () => (st.focusBay() ? st.setView({ autoFocus: false }) : st.showAll()) }, tr('Mostrar tudo', 'Show all'))
+  const focusChip = h('div', { class: 'focus-chip', hidden: true, role: 'status' }, focusText, focusBtn)
 
   const slider = (label: string, get: () => number, set: (v: number) => void, max = 100, step = 1) => {
     const input = h('input', { type: 'range', min: 0, max, step, value: get(), 'aria-label': label })
@@ -352,8 +353,15 @@ export function mountApp(root: HTMLElement, st: Store): void {
     if (v.medir && !measureText) measureChip.textContent = MEASURE_HINT
     paintMont()
     const fb = st.focusBay()
-    focusChip.hidden = !fb || v.tab !== '3d'
-    focusText.textContent = fb ? tr(`Mostrando só a gaveta ${fb} enquanto você edita.`, `Showing only drawer ${fb} while you edit.`) : ''
+    const iso = st.vis.isolate ? st.result.parts.find((p) => partFamily(p.id) === partFamily(st.vis.isolate!))?.label ?? st.vis.isolate : null
+    const nHidden = st.vis.hiddenGroups.length + st.vis.hiddenParts.length
+    let chipText = ''
+    if (fb) chipText = tr(`Mostrando só a gaveta ${fb} enquanto você edita.`, `Showing only drawer ${fb} while you edit.`)
+    else if (iso) chipText = tr(`Mostrando só: ${iso}.`, `Showing only: ${iso}.`)
+    else if (st.vis.isolateBay) chipText = tr(`Mostrando só a gaveta ${st.vis.isolateBay}.`, `Showing only drawer ${st.vis.isolateBay}.`)
+    else if (nHidden > 0) chipText = tr(`${nHidden} ${nHidden === 1 ? 'item escondido' : 'itens escondidos'}.`, `${nHidden} hidden ${nHidden === 1 ? 'item' : 'items'}.`)
+    focusChip.hidden = !chipText || v.tab !== '3d' || v.montagem !== null
+    focusText.textContent = chipText
     paintDiff()
     bCorte.setAttribute('aria-pressed', String(v.corte))
     sOpen.wrap.hidden = v.tab !== '3d'

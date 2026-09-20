@@ -16,8 +16,46 @@ export const SKADIS_CLIP_PROFILE: Vec2[] = [
 ]
 export const SKADIS_CLIP_LENGTH = 12
 export const SKADIS_CLIP_PITCH = 40
-const PEG_LEN = 3
-const PIN_HALF = 3
+const PEG_LEN = 2.5
+/** Snaps a thickness up to a whole number of layers. */
+const layers = (x: number, lh: number) => Math.round(Math.ceil(x / lh - 1e-9) * lh * 100) / 100
+
+/**
+ * Half-cylinder along Z (D cross-section, flat face on y = 0, body toward +y) with chamfered ends.
+ * rings: [z, radius] ascending. Watertight: every ring shares the same vertex layout, caps are fans.
+ */
+export function halfLathe(rings: Array<[number, number]>, seg = 16): Mesh {
+  const ring = ([z, r]: [number, number]) => {
+    const pts: Array<[number, number, number]> = []
+    for (let i = 0; i <= seg; i++) {
+      const a = (Math.PI * i) / seg
+      pts.push([r * Math.cos(a), r * Math.sin(a), z])
+    }
+    pts.push([0, 0, z])
+    return pts
+  }
+  const rs = rings.map(ring)
+  const n = rs[0]!.length
+  const out: number[] = []
+  for (let k = 0; k + 1 < rs.length; k++) {
+    const a = rs[k]!, b = rs[k + 1]!
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      out.push(...a[i]!, ...a[j]!, ...b[j]!, ...a[i]!, ...b[j]!, ...b[i]!)
+    }
+  }
+  const cap = (r: Array<[number, number, number]>, z: number, up: boolean) => {
+    const cy = rings[0]![1] * 0.4
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      if (up) out.push(0, cy, z, ...r[i]!, ...r[j]!)
+      else out.push(0, cy, z, ...r[j]!, ...r[i]!)
+    }
+  }
+  cap(rs[0]!, rings[0]![0], false)
+  cap(rs[rs.length - 1]!, rings[rings.length - 1]![0], true)
+  return out
+}
 const RING = 24
 /** Abutting solids overlap by this much so no edge loop is shared (keeps meshes watertight). */
 const WELD = 0.02
@@ -174,14 +212,28 @@ function pins(ctx: Ctx): Part | undefined {
   for (const face of ['right', 'top'] as const) {
     const fr = faceFrame(face, p.width, p.height, p.depth)
     const a = faceAnchors(p, layout, nz, face)
-    for (const [u, v] of corners(a.points, fr.width, fr.height)) placements.push(placeAt(fr, u, v))
+    for (const [u, v] of corners(a.points, fr.width, fr.height)) {
+      // two halves per pin: the second is turned 180 degrees about the pin axis so the flat faces meet
+      placements.push(placeAt(fr, u, v), placeAt(fr, u, v, Math.PI))
+    }
   }
   if (placements.length === 0) return undefined
   const ch = Math.min(0.6, pegR * 0.4)
-  const mesh = lathe([[-PIN_HALF, pegR - ch], [-PIN_HALF + ch, pegR], [PIN_HALF - ch, pegR], [PIN_HALF, pegR - ch]])
+  const ct = layers(1, nz.layerHeight)
+  const h = ct / 2
+  const shaft = Math.min(4, Math.max(2, ctx.m.t))
+  const R = pegR + 0.9
+  const cc = 0.3
+  const e = h + shaft
+  const mesh = halfLathe([
+    [-e, pegR - ch], [-e + ch, pegR], [-h, pegR], [-h + 0.002, R - cc], [-h + cc, R],
+    [h - cc, R], [h - 0.002, R - cc], [h, pegR], [e - ch, pegR], [e, pegR - ch],
+  ])
+  const dia = (2 * pegR).toFixed(1), cd = (2 * R).toFixed(1)
   return fixPart({
-    id: 'FIX_PINO', label: tr('Pino de alinhamento', 'Alignment pin'), assembled: mesh, placements,
-    note: tr(`Pino de ${(2 * pegR).toFixed(1)} x ${2 * PIN_HALF} mm com pontas chanfradas, impresso em pé. 4 por emenda (lado direito e topo), nos furos de ancoragem dos dois gabinetes.`, `${(2 * pegR).toFixed(1)} x ${2 * PIN_HALF} mm pin with chamfered ends, printed standing. 4 per joint (right side and top), in the anchor holes of both cabinets.`),
+    id: 'FIX_PINO_METADE', label: tr('Meio pino de alinhamento', 'Alignment half-pin'), assembled: mesh, placements,
+    orient: mat4RotX(Math.PI / 2),
+    note: tr(`Metade de pino com colar: hastes de ${dia} mm x ${shaft.toFixed(1)} mm de cada lado (profundidade útil da ancoragem) e colar de ${cd} mm x ${ct} mm com bordas chanfradas, no meio. Imprime deitada sobre a face plana (corte no eixo), sem suporte; cole duas metades pelas faces planas. O colar fica na emenda: os gabinetes ficam afastados ${ct} mm (folga da junta). 2 metades por pino, 4 pinos por emenda.`, `Half-pin with collar: ${dia} mm x ${shaft.toFixed(1)} mm shafts on each side (useful anchor depth) and a ${cd} mm x ${ct} mm chamfered collar in the middle. Prints lying on the flat face (split through the axis), without support; glue two halves along the flat faces. The collar sits in the seam: cabinets end up ${ct} mm apart (joint gap). 2 halves per pin, 4 pins per joint.`),
   })
 }
 
@@ -191,18 +243,20 @@ function butterflyOutline(len: number, lobe: number, neck: number): Vec2[] {
 
 function butterfly(ctx: Ctx, placements: Mat4[]): Part {
   const { m, pegR, c } = ctx
-  const tb = 2
-  const lobe = 10
+  const tb = layers(1.6, ctx.nz.layerHeight)
+  // lobe: peg diameter plus two ~1.5-perimeter walls; neck about 60% of the lobe
+  const lobe = Math.round((2 * pegR + 4 * ctx.nz.lineWidth) * 2) / 2
+  const neck = Math.round(lobe * 6) / 10
   const len = 2 * c + lobe
   const solids = [
-    extrude(butterflyOutline(len, lobe, 4.5), [], 0, tb),
+    extrude(butterflyOutline(len, lobe, neck), [], 0, tb),
     cylinder(-c, 0, pegR, -PEG_LEN, 0),
     cylinder(c, 0, pegR, -PEG_LEN, 0),
   ]
   return fixPart({
     id: 'FIX_BORBOLETA', label: tr('Chave borboleta', 'Butterfly key'), assembled: merge(...solids), placements,
     orient: mat4RotX(Math.PI),
-    note: tr(`Chave borboleta plana (${len.toFixed(1)} x ${lobe} x ${tb} mm) com dois pinos de ${(2 * pegR).toFixed(1)} mm (folga ${m.fit} mm) que entram nos furos das duas emendas. Imprime com os pinos para cima, sem suporte.`, `Flat butterfly key (${len.toFixed(1)} x ${lobe} x ${tb} mm) with two ${(2 * pegR).toFixed(1)} mm pins (clearance ${m.fit} mm) that go into the holes of the two joints. Prints with the pins facing up, without support.`),
+    note: tr(`Chave borboleta fina e plana (${len.toFixed(1)} x ${lobe} x ${tb} mm; espessura de ${Math.round(tb / ctx.nz.layerHeight)} camadas, largura proporcional ao pino) com dois pinos de ${(2 * pegR).toFixed(1)} mm x ${PEG_LEN} mm (folga ${m.fit} mm) que entram nos furos das duas emendas. Imprime com os pinos para cima, sem suporte.`, `Thin flat butterfly key (${len.toFixed(1)} x ${lobe} x ${tb} mm; ${Math.round(tb / ctx.nz.layerHeight)} layers thick, width proportional to the pin) with two ${(2 * pegR).toFixed(1)} mm x ${PEG_LEN} mm pins (clearance ${m.fit} mm) that go into the holes of the two joints. Prints with the pins facing up, without support.`),
   })
 }
 
@@ -211,14 +265,16 @@ function screwConnector(ctx: Ctx, size: 'M3' | 'M4', placements: Mat4[]): Part {
   const d = size === 'M3' ? 3 : 4
   const af = (size === 'M3' ? 5.5 : 7) + 0.3
   const nutH = (size === 'M3' ? 2.4 : 3.2) + 0.4
-  const floor = 1.6
+  const lw = ctx.nz.lineWidth
+  const floor = layers(1.2, ctx.nz.layerHeight)
   const T = nutH + floor
+  const wall = 3 * lw
   const hole = d + 0.4
   const xs = [-c, c]
   const circ = xs.map((x) => circle(x, 0, hole / 2))
   const hex = xs.map((x) => hexRing(x, 0, af, 30))
-  const len = 2 * c + af + 6
-  const wid = af + 6
+  const len = 2 * c + af + 2 * wall
+  const wid = af / Math.cos(Math.PI / 6) + 2 * wall
   const mesh = extrudeWithHoleProfile(slotPoly(0, 0, len, wid, 8), [
     { z: 0, holes: circ }, { z: floor, holes: circ }, { z: floor, holes: hex }, { z: T, holes: hex },
   ])
@@ -233,8 +289,9 @@ function magnetConnector(ctx: Ctx, placements: Mat4[]): Part {
   const { c } = ctx
   const dia = 6.2, depth = 2.2, floor = 0.8, T = depth + floor
   const xs = [-c, c]
-  const len = 2 * c + dia + 3.2
-  const wid = dia + 3.2
+  const wall = 3 * ctx.nz.lineWidth
+  const len = 2 * c + dia + 2 * wall
+  const wid = dia + 2 * wall
   const outline = slotPoly(0, 0, len, wid, 8)
   const mesh = merge(
     extrude(outline, [], 0, floor),
@@ -273,27 +330,29 @@ function wallBracket(ctx: Ctx, fr: FaceFrame, pts: Vec2[], mode: 'screws' | 'key
   const pegs = [-s / 2, s / 2].map((x) => cylinder(x, 0, pegR, -PEG_LEN, 0))
   const shank = d + 0.5
   const head = 1.9 * d
-  const xLen = s + 16
+  const lh = ctx.nz.layerHeight
+  const xLen = s + 2 * pegR + 6 * ctx.nz.lineWidth
   let mesh: Mesh
   let T: number
   let note: string
   if (mode === 'screws') {
-    const wb = Math.max(16, head + 8)
+    const wb = head + 6
     const yc = c - wb / 2
     const cs = (head - shank) / 2
-    T = Math.max(4, cs + 2)
+    T = layers(Math.max(3, cs + 1.6), lh)
     const xs = s / 2 > head + 4 ? [-s / 4, s / 4] : [0]
     const levels = xs.map((x) => countersinkLevels(x, yc, shank, head, T))
     mesh = extrudeWithHoleProfile(slotPoly(0, yc, xLen, wb, 8), levels[0]!.map((_, k) => ({ z: levels[0]![k]!.z, holes: levels.map((l) => l[k]!.holes[0]!) })))
     note = tr(`Placa de parede ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm com ${xs.length} furo(s) escareado(s) para parafuso de ${d} mm. Fixe na parede (a capacidade depende de parafuso e bucha) e encaixe o gabinete nos pinos. Imprime com o lado do gabinete para cima.`, `Wall plate ${xLen.toFixed(0)} x ${wb.toFixed(0)} x ${T.toFixed(1)} mm with ${xs.length} countersunk hole(s) for a ${d} mm screw. Fix it to the wall (capacity depends on the screw and anchor) and fit the cabinet onto the pegs. Prints with the cabinet side facing up.`)
   } else {
-    const hd = Math.max(2, 0.6 * d)
-    const ramp = 3
-    T = hd + ramp + 1.2
+    const hd = Math.max(1.6, 0.5 * d)
     const bigS = head / 2 + 0.5
     const wS = shank + 0.2
-    const bigR = bigS + 2.5
+    const bigR = bigS + 1.6
     const wR = head + 1
+    // ramp steeper than 45 degrees in both the round and the slot walls: prints without support
+    const ramp = Math.round((Math.max(bigR - bigS, (wR - wS) / 2) + 0.1) * 10) / 10
+    T = layers(hd + ramp + 1.2, lh)
     const slotLen = 12
     const kc = c - 2 - bigR
     const bottom = kc - slotLen - wR / 2 - 2
@@ -316,7 +375,9 @@ function wallBracket(ctx: Ctx, fr: FaceFrame, pts: Vec2[], mode: 'screws' | 'key
 
 function cleats(ctx: Ctx, fr: FaceFrame, pts: Vec2[]): Part[] {
   const { p, c, holeD, fixing } = ctx
-  const t = 8, w = 30
+  const d0 = fixing.wall.screwDiameter
+  const t = layers(5, ctx.nz.layerHeight)
+  const w = Math.max(20, Math.ceil(t + 2 * d0 + 6))
   const L = Math.min(p.width, Math.max(p.printBed.x, p.printBed.y) - 10)
   const u0 = (p.width - L) / 2
   const v0 = p.height - w
@@ -340,7 +401,7 @@ function cleats(ctx: Ctx, fr: FaceFrame, pts: Vec2[]): Part[] {
   const cabHoles: Vec2[] = pts
     .filter((q) => Math.abs(q[1] - (p.height - c)) < 0.6 && q[0] > u0 + 3 && q[0] < u0 + L - 3)
     .map((q) => [q[0] - u0, q[1] - v0] as Vec2)
-  const cabBlock = extrudeWithHoleProfile(rectPoly(0, t, L, w), levelsFor(cabHoles, holeD + 0.2, holeD + 0.2 + 2 * 1.5))
+  const cabBlock = extrudeWithHoleProfile(rectPoly(0, t, L, w), levelsFor(cabHoles, holeD + 0.2, holeD + 0.2 + 2 * 1.2))
   const cabMesh = merge(cabBlock, wedge([[0, 0], [t + WELD, 0], [t + WELD, t - WELD]]))
 
   const yb = v0 + 2 * t - w
@@ -369,7 +430,7 @@ function skadisClips(ctx: Ctx, fr: FaceFrame, pts: Vec2[]): Part | undefined {
     if (k >= 1) centres.push(mids[0]! + k * SKADIS_CLIP_PITCH)
   }
   const half = SKADIS_CLIP_PITCH / 2
-  const tp = 3
+  const tp = layers(2.4, ctx.nz.layerHeight)
   const yBlade = -14
   const slotW = 10, slotH = 3.4
   const cs = 1.3

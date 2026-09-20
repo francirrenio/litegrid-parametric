@@ -204,20 +204,13 @@ function insetConvex(poly: Vec2[], d: number): Vec2[] | null {
  * A rib with a ridge section: the footprint polygon (in the wall plane) is the wide base against the wall, and it narrows
  * to a flat top h mm out from the wall. The flanks are shallow, so it prints without supports at any angle.
  */
-function ridge(c: DrawerCtx, wall: Wall, foot: Vec2[], h: number, top: number): Mesh {
+function ridge(c: DrawerCtx, wall: Wall, foot: Vec2[], h: number, top: number, bw: number): Mesh {
   const base = signedArea(foot) < 0 ? foot.slice().reverse() : foot
-  const width = Math.min(...edgeLengths(base))
-  const want = Math.max(0.05, (width - top) / 2)
-  let tp: Vec2[] | null = null
-  for (const f of [1, 0.6, 0.3]) {
-    tp = insetConvex(base, want * f)
-    if (tp) break
-  }
-  if (!tp) {
-    const cx = base.reduce((s2, q) => s2 + q[0], 0) / base.length
-    const cy = base.reduce((s2, q) => s2 + q[1], 0) / base.length
-    tp = base.map(([x, y]) => [cx + (x - cx) * 0.3, cy + (y - cy) * 0.3] as Vec2)
-  }
+  // The flanks keep the same slope everywhere (inset = (base - top) / 2); a trimmed sliver too small for that is dropped.
+  const want = Math.max(0.05, (bw - top) / 2)
+  if (Math.min(...edgeLengths(base)) < 0.3) return []
+  const tp = insetConvex(base, want)
+  if (!tp) return []
   const nb = c.w - OV, nt = c.w + h
   const map = (v: number, y: number, n: number): [number, number, number] =>
     wall === 'left' ? [n, y, v] : wall === 'right' ? [c.W - n, y, v] : [v, y, n]
@@ -260,12 +253,12 @@ export function reinforcement(c: DrawerCtx): Mesh[] {
     // Every rib is drawn for the full wall height and then trimmed to the sloped front, like the wall.
     const place = (foot: Vec2[]): void => {
       if (!trim || foot.every(([z, y]) => y <= topAt(c, z) - 1 + 1e-6)) {
-        out.push(ridge(c, wall, foot, h, top))
+        out.push(ridge(c, wall, foot, h, top, bw))
         return
       }
       for (const poly of polygonClipping.intersection([foot.map(([a, b]) => [a, b] as [number, number])], [region])) {
         const pts = poly[0]!.slice(0, -1).map(([a, b]) => [a, b] as Vec2)
-        if (pts.length >= 3) out.push(ridge(c, wall, pts, h, top))
+        if (pts.length >= 3) out.push(ridge(c, wall, pts, h, top, bw))
       }
     }
     if (eff === 'ribs' || eff === 'postsBeams') {

@@ -117,6 +117,8 @@ export interface ProjectState {
   includeTestPiece?: boolean
   /** Viewer colours: per part group and per part id. */
   colors?: { groups: Record<string, string>; parts: Record<string, string> }
+  /** Manual arrangement of the parts on the print beds (key = part id + copy). */
+  plateLayout?: Record<string, { x: number; y: number; rotated?: boolean; plate?: number }>
   /** Smallest item stored (mm): perforation holes are limited to this size. */
   smallestItem: number
   advanced: NozzleOverrides & { clearances?: Partial<Clearances>; fitClearance?: number }

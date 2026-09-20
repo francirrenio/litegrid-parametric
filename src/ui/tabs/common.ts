@@ -31,6 +31,18 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
       ),
     }),
   ]
+  if (kind === 'skin' && cur !== 'panel') {
+    out.push(
+      autoField(m<number | 'auto'>('thickness'), tr('Espessura da parede', 'Wall thickness'), {
+        min: 0.8, max: 12, step: 0.1, unit: 'mm', fallback: 1.8, autoText: tr('automática (4 perímetros)', 'automatic (4 perimeters)'),
+        hint: tr('Espessura da parede externa desta face.', 'Thickness of the outer wall of this face.'),
+        tip: tr(
+          'Espessura da parede externa. Automático usa 4 perímetros do bico. Mais grossa deixa a skin mais rígida e pesada; mais fina economiza filamento, mas pode ficar flexível em faces grandes.',
+          'Thickness of the outer wall. Automatic uses 4 nozzle perimeters. Thicker makes the skin stiffer and heavier; thinner saves filament but can flex on large faces.',
+        ),
+      }),
+    )
+  }
   if (cur === 'perforated') {
     out.push(
       chips(m<FaceFill['pattern']>('pattern'), tr('Padrão dos furos', 'Hole pattern'), [
@@ -141,7 +153,7 @@ export function faceFillControls(mk: (k: keyof FaceFill) => Model<never>, kind: 
           ),
         }),
       )
-    } else if (cur !== 'panel') {
+    } else if (cur !== 'panel' && kind !== 'skin') {
       out.push(
         selectField(m<FaceFill['reinforcement']>('reinforcement'), tr('Reforço', 'Reinforcement'), REINFORCEMENTS, {
           rebuild: true,

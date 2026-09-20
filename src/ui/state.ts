@@ -230,6 +230,8 @@ export class Store {
 
   private restore(snap: string): void {
     this.project = JSON.parse(snap) as ProjectState
+    this.plateLayout = structuredClone(this.project.plateLayout ?? {})
+    this.layoutSig.clear()
     this.saveNow()
     this.generateNow()
     this.emit('rebuild')
@@ -325,15 +327,19 @@ export class Store {
   private replanPlates(): void {
     const parts = this.result.parts
     const sig = new Map(parts.map((p) => [p.id, { n: p.instances.length, s: Store.sizeSig(p) }]))
+    let dropped = false
     for (const key of Object.keys(this.plateLayout)) {
       const i = key.lastIndexOf('#')
       const info = sig.get(key.slice(0, i))
       const copy = Number(key.slice(i + 1))
+      if (info && !this.layoutSig.has(key)) this.layoutSig.set(key, info.s)
       if (!info || !(copy >= 1 && copy <= info.n) || this.layoutSig.get(key) !== info.s) {
         delete this.plateLayout[key]
         this.layoutSig.delete(key)
+        dropped = true
       }
     }
+    if (dropped) this.syncLayoutToProject()
     const bed = {
       x: this.project.printBed.x > 0 ? this.project.printBed.x : 220,
       y: this.project.printBed.y > 0 ? this.project.printBed.y : 220,
@@ -368,6 +374,7 @@ export class Store {
     this.plateLayout[key] = { ...cur, ...patch }
     this.rememberLayout(key)
     this.replanPlates()
+    this.syncLayoutToProject()
     this.emit('result')
   }
 
@@ -375,7 +382,16 @@ export class Store {
     this.plateLayout = {}
     this.layoutSig.clear()
     this.replanPlates()
+    this.syncLayoutToProject()
     this.emit('result')
+  }
+
+  /** The manual arrangement travels with the project (saved, exported, shared). */
+  private syncLayoutToProject(): void {
+    if (Object.keys(this.plateLayout).length > 0) this.project.plateLayout = structuredClone(this.plateLayout)
+    else delete this.project.plateLayout
+    this.scheduleSave()
+    this.scheduleHistory()
   }
 
   /* selection / view */
@@ -627,7 +643,7 @@ export class Store {
     this.sel = { bay: null, section: null }
     this.vis = { ...ALL_VISIBLE, hiddenGroups: [], hiddenParts: [] }
     this.view.plate = 0
-    this.plateLayout = {}
+    this.plateLayout = structuredClone(project.plateLayout ?? {})
     this.layoutSig.clear()
     this.resetHistory()
     this.skipDiff = true

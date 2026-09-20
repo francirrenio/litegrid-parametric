@@ -1,6 +1,6 @@
 import { tr } from '../i18n'
 import { clear, h, icon } from './dom'
-import { openKeys } from './fields'
+import { openKeys, setGroupScope } from './fields'
 import { tabOfWarning, type SideTab, type Store } from './state'
 import { avancadoTab } from './tabs/avancado'
 import type { TabView } from './tabs/common'
@@ -92,6 +92,7 @@ export function createSidebar(st: Store): HTMLElement {
     const inside = panel.contains(document.activeElement)
     clear(panel)
     try {
+      setGroupScope(st.sideTab)
       current = BUILDERS[st.sideTab](st)
       panel.append(current.el)
     } catch (e) {

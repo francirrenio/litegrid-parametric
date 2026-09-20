@@ -47,7 +47,7 @@ export function defaultDrawer(overrides: Partial<DrawerConfig> = {}): DrawerConf
     frontLip: false,
     lipDepth: 8,
     handle: 'cutout',
-    labelHolder: true,
+    labelHolder: false,
     labelMode: 'external',
     labelWidth: 40,
     labelHeight: 14,

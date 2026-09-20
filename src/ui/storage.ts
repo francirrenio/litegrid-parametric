@@ -113,7 +113,18 @@ function pickOverrides(patch: unknown): unknown {
   return out
 }
 
+function pickPlateLayout(patch: unknown): unknown {
+  if (!isObj(patch)) return SKIP
+  const out: Obj = {}
+  for (const [k, v] of Object.entries(patch).slice(0, 2000)) {
+    if (UNSAFE.has(k) || !isObj(v) || !isNum(v.x) || !isNum(v.y)) continue
+    out[k] = { x: v.x, y: v.y, rotated: v.rotated === true, ...(isNum(v.plate) ? { plate: v.plate } : {}) }
+  }
+  return Object.keys(out).length ? out : SKIP
+}
+
 function pick(base: unknown, patch: unknown, key: string): unknown {
+  if (key === 'plateLayout') return pickPlateLayout(patch)
   if (key === 'sections') return pickSections(patch)
   if (key === 'overrides') return pickOverrides(patch)
   if (key === 'advanced') return pickAdvanced(patch)
@@ -154,6 +165,10 @@ export function migrateProject(raw: unknown): ProjectState {
     const candidate = isObj(raw) && isObj(raw.project) ? raw.project : raw
     if (!isObj(candidate)) return base
     const picked = pickObject(base as unknown as Obj, candidate)
+    if ('plateLayout' in candidate) {
+      const pl = pickPlateLayout(candidate.plateLayout)
+      if (pl !== SKIP) picked.plateLayout = pl
+    }
     delete picked.version
     const p = deepAssign(base as unknown as Obj, picked) as unknown as ProjectState
     p.version = PROJECT_VERSION
